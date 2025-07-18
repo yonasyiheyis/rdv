@@ -9,5 +9,6 @@
     "go.lintTool": "golangci-lint",
     "go.lintOnSave": "workspace",
     // Optional‑but‑nice: format on save
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "makefile.configureOnOpen": false
 }
