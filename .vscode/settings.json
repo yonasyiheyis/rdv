@@ -1,0 +1,13 @@
+{
+    // Use gofumpt (stricter gofmt) inside gopls
+    "gopls": {
+        "formatting.gofumpt": true
+    },
+    // Keep Go tools up‑to‑date automatically
+    "go.toolsManagement.autoUpdate": true,
+    // Run golangci‑lint instead of the default 'staticcheck' on file save
+    "go.lintTool": "golangci-lint",
+    "go.lintOnSave": "workspace",
+    // Optional‑but‑nice: format on save
+    "editor.formatOnSave": true
+}
