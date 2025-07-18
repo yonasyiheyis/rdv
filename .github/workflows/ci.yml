@@ -2,14 +2,17 @@ name: sanity-check
 on: [push, pull_request]
 
 jobs:
-  linters:
-    runs-on: macos-14   # native darwin builds good for rdv users
+  lint:
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-go@v5
         with:
-          go-version: 'stable'
-      - name: Run linters
-        run: |
-          go version
-          golangci-lint run --timeout=5m
+          go-version: stable
+
+      # Installs and runs golangci-lint in one shot
+      - uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest          # or "v2.2.2" to pin
+          args: --timeout=5m
