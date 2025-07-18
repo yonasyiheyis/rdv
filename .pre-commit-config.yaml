@@ -1,0 +1,12 @@
+repos:
+- repo: https://github.com/golangci/golangci-lint
+  rev: v2.2.2       # pin latest
+  hooks:
+    - id: golangci-lint
+- repo: local
+  hooks:
+    - id: go-fmt
+      name: gofmt
+      entry: gofmt -s -w .
+      language: system
+      types: [go]
