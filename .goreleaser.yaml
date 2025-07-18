@@ -1,0 +1,36 @@
+# .goreleaser.yaml
+version: 2
+
+project_name: rdv
+
+# Where to put build artifacts (default is dist/, but explicit is fine)
+dist: dist
+
+builds:
+  - id: rdv
+    main: ./cmd/rdv
+    binary: rdv
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - id: default
+    ids: [rdv]                           # replaces deprecated 'builds'
+    formats: [tar.gz]                    # replaces deprecated singular 'format'
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ .Tag }}-dev"     # replaces deprecated 'name_template'
+
+# No publishing/announcing config yet; we'll add later when ready
