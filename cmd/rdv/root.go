@@ -1,6 +1,7 @@
 package main
 
 import (
+	// Standard & third‑party
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,7 +9,13 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	// Internal packages
+	"github.com/yonasyiheyis/rdv/internal/plugin"
 	"github.com/yonasyiheyis/rdv/internal/version"
+
+	// --- side‑effect plugin imports ---
+	_ "github.com/yonasyiheyis/rdv/internal/plugins/aws"
+	_ "github.com/yonasyiheyis/rdv/internal/plugins/db"
 )
 
 var (
@@ -39,6 +46,9 @@ deletes, and exports configuration for AWS, databases, GitHub, and more.`,
 	cobra.OnInitialize(initConfig)
 
 	// Placeholder for future sub‑commands; leaving root runnable alone.
+
+	// ----- Load plugin sub‑commands -----
+	plugin.LoadAll(cmd)
 
 	return cmd
 }

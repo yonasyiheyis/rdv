@@ -16,3 +16,9 @@ jobs:
         with:
           version: latest          # or "v2.2.2" to pin
           args: --timeout=5m
+      
+      # ---------- TEST ----------
+      - name: Run unit tests
+        run: |
+          go test ./... -v -race -coverprofile=coverage.out
+          go tool cover -func=coverage.out
