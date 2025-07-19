@@ -23,3 +23,6 @@ lint: ## Static analysis
 
 clean:
 	rm -rf bin
+
+docs:
+	@bin/rdv help > DOCS.txt
