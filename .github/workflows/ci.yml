@@ -11,5 +11,12 @@ jobs:
         with:
           go-version: stable
 
-      - name: Run CI (lint + tests with coverage)
-        run: make ci
+      # --- Lint (action handles installation) ---
+      - uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          args: --timeout=5m
+
+      # --- Tests with coverage ---
+      - name: Test (race + coverage)
+        run: make test-ci

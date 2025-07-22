@@ -14,7 +14,7 @@ func TestPgURLFormat(t *testing.T) {
 	require.NoError(t, os.Setenv("RDV_DB_DIR", tmp))
 
 	cfg := pgConfig{Profiles: map[string]pgProfile{
-		"ci": {Host: "localhost", Port: "5432", User: "bob", Password: "p@ss", DBName: "shop"},
+		"ci": {Host: "localhost", Port: "5432", User: "bob", Password: "NOT_A_SECRET", DBName: "shop"},
 	}}
 	b, _ := yaml.Marshal(cfg)
 	require.NoError(t, os.WriteFile(postgresPath(), b, 0o600))
@@ -30,5 +30,5 @@ func TestPgURLFormat(t *testing.T) {
 	os.Stdout = old
 	out, _ := io.ReadAll(r)
 
-	require.Contains(t, string(out), "postgres://bob:p@ss@localhost:5432/shop?sslmode=disable")
+	require.Contains(t, string(out), "postgres://bob:NOT_A_SECRET@localhost:5432/shop?sslmode=disable")
 }
