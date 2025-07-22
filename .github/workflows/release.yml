@@ -1,0 +1,31 @@
+name: release
+on:
+  push:
+    tags:
+      - 'v*.*.*'              # SemVer tags trigger releases
+
+jobs:
+  goreleaser:
+    runs-on: macos-14         # mac runner builds darwin & linux easily
+    permissions:              # allow action to create releases
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Install dependencies (CGO disabled)     # optional, but clarity
+        run: go mod download
+
+      - name: Set up Homebrew tap token
+        run: echo "HOMEBREW_GITHUB_API_TOKEN=${{ secrets.RDV_TOKEN_GORELEASER }}" >> $GITHUB_ENV
+
+      - uses: goreleaser/goreleaser-action@v5
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GORELEASER_KEY: ${{ secrets.RDV_TOKEN_GORELEASER }}

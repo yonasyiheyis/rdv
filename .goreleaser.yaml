@@ -37,3 +37,17 @@ snapshot:
   version_template: "{{ .Tag }}-dev"     # replaces deprecated 'name_template'
 
 # No publishing/announcing config yet; we'll add later when ready
+
+brew:
+  github:
+    owner: yonasyiheyis
+    name: homebrew-rdv        # tap repo
+  formula:
+    name: rdv
+    description: "Interactive dev‑env config manager"
+    homepage: "https://github.com/yonasyiheyis/rdv"
+    caveats: |
+      After installation run:
+        rdv completion zsh > $(brew --prefix)/share/zsh/site-functions/_rdv
+    test: |
+      rdv --version
