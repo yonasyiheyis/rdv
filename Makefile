@@ -18,6 +18,10 @@ build: ## Build for host OS/arch
 test: ## Run unit tests
 	go test ./...
 
+test-ci: ## Run unit tests with coverage
+	go test ./... -v -race -coverprofile=coverage.out
+	go tool cover -func=coverage.out
+
 lint: ## Static analysis
 	golangci-lint run
 
@@ -26,3 +30,5 @@ clean:
 
 docs:
 	@bin/rdv help > DOCS.txt
+
+ci: lint test-ci ## run linter and tests (used by GitHub Actions)

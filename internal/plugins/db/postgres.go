@@ -7,6 +7,8 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+
+	"github.com/yonasyiheyis/rdv/internal/logger"
 )
 
 type pgProfile struct {
@@ -88,7 +90,7 @@ func pgSetConfig(profile string) error {
 		return err
 	}
 
-	fmt.Printf("✅ PostgreSQL profile %q saved to %s\n", profile, postgresPath())
+	logger.L.Infow("✅ PostgreSQL profile saved", "profile", profile, "file", postgresPath())
 	return nil
 }
 
