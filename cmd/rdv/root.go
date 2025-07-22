@@ -8,8 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 
 	// Internal packages
+	"github.com/yonasyiheyis/rdv/internal/logger"
 	"github.com/yonasyiheyis/rdv/internal/plugin"
 	"github.com/yonasyiheyis/rdv/internal/version"
 
@@ -21,6 +23,7 @@ import (
 var (
 	cfgFile string
 	debug   bool
+	log     *zap.SugaredLogger
 )
 
 func newRootCmd() *cobra.Command {
@@ -42,15 +45,63 @@ deletes, and exports configuration for AWS, databases, GitHub, and more.`,
 	cmd.SetVersionTemplate(fmt.Sprintf("rdv %s (commit: %s, date: %s)\n",
 		version.Version, version.Commit, version.Date))
 
+	/* ---------- initialise logger AFTER flags parsed ---------- */
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		if log != nil { // already initialised (nested sub‑command)
+			return nil
+		}
+
+		var zl *zap.Logger
+		var err error
+		if debug {
+			zl, err = zap.NewDevelopment()
+		} else {
+			zl, err = zap.NewProduction()
+		}
+		if err != nil {
+			return err
+		}
+		log = zl.Sugar()
+		logger.L = log // make available to plugins
+		return nil
+	}
+
 	// Pre‑run: init Viper and (future) logger
 	cobra.OnInitialize(initConfig)
 
 	// Placeholder for future sub‑commands; leaving root runnable alone.
 
+	cmd.AddCommand(newCompletionCmd())
+
 	// ----- Load plugin sub‑commands -----
 	plugin.LoadAll(cmd)
 
 	return cmd
+}
+
+func newCompletionCmd() *cobra.Command {
+	comp := &cobra.Command{
+		Use:       "completion [bash|zsh|fish|powershell]",
+		Short:     "Generate shell completion script",
+		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+		ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
+		Hidden:    true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+			switch args[0] {
+			case "bash":
+				err = cmd.Root().GenBashCompletion(os.Stdout)
+			case "zsh":
+				err = cmd.Root().GenZshCompletion(os.Stdout)
+			case "fish":
+				err = cmd.Root().GenFishCompletion(os.Stdout, true)
+			case "powershell":
+				err = cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
+			}
+			return err
+		},
+	}
+	return comp
 }
 
 // initConfig wires Viper to read config + env vars.
@@ -71,7 +122,7 @@ func initConfig() {
 
 	// 3. Read file if present; ignore if not found
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintf(os.Stderr, "using config file: %s\n", viper.ConfigFileUsed())
+		logger.L.Infof("using config file: %s", viper.ConfigFileUsed())
 	}
 }
 

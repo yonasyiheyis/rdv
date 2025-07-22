@@ -2,4 +2,6 @@ package logger
 
 import "go.uber.org/zap"
 
-var L *zap.SugaredLogger
+// L is the shared SugaredLogger. It defaults to a no‑op logger to avoid nil
+// dereference before the real logger is initialised in root.PersistentPreRunE.
+var L = zap.NewNop().Sugar()
