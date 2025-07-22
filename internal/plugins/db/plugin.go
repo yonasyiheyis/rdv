@@ -1,8 +1,6 @@
 package db
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/yonasyiheyis/rdv/internal/plugin"
@@ -15,14 +13,12 @@ func (d *dbPlugin) Name() string { return "db" }
 func (d *dbPlugin) Register(root *cobra.Command) {
 	dbCmd := &cobra.Command{
 		Use:   "db",
-		Short: "Manage DB connection settings (stub)",
-		Run: func(cmd *cobra.Command, _ []string) {
-			fmt.Println("DB plugin is not implemented yet 🤓")
-		},
+		Short: "Manage database connection settings",
 	}
+
+	// attach the postgres sub‑command
+	dbCmd.AddCommand(newPostgresCmd())
 	root.AddCommand(dbCmd)
 }
 
-func init() {
-	plugin.Register(&dbPlugin{})
-}
+func init() { plugin.Register(&dbPlugin{}) }
