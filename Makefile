@@ -32,3 +32,10 @@ docs:
 	@bin/rdv help > DOCS.txt
 
 ci: lint test-ci ## run linter and tests (used by GitHub Actions)
+
+# Release helpers
+release-patch:
+	@NEW=$$(git tag --sort=-v:refname | head -1 | awk -F. '{printf "v%d.%d.%d",$$1+0,$$2+0,$$3+1}') && \
+	echo "Tagging $$NEW" && \
+	git tag -a $$NEW -m "Release $$NEW" && \
+	git push origin $$NEW
