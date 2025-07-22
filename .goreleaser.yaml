@@ -38,16 +38,17 @@ snapshot:
 
 # No publishing/announcing config yet; we'll add later when ready
 
-brew:
-  github:
-    owner: yonasyiheyis
-    name: homebrew-rdv        # tap repo
-  formula:
-    name: rdv
-    description: "Interactive dev‑env config manager"
-    homepage: "https://github.com/yonasyiheyis/rdv"
-    caveats: |
-      After installation run:
-        rdv completion zsh > $(brew --prefix)/share/zsh/site-functions/_rdv
-    test: |
-      rdv --version
+brews:
+  - github:
+      owner: yonasyiheyis      # <— your GitHub user/org
+      name: homebrew-rdv       # tap repo you created
+    formula:
+      name: rdv
+      description: "Interactive dev‑env config manager"
+      homepage: "https://github.com/yonasyiheyis/rdv"
+      caveats: |
+        After installation, enable shell completion:
+
+          rdv completion zsh > $(brew --prefix)/share/zsh/site-functions/_rdv
+      test: |
+        rdv --version
