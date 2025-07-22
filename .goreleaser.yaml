@@ -39,10 +39,11 @@ snapshot:
 # No publishing/announcing config yet; we'll add later when ready
 
 brews:
-  - tap:                       # ← replaces “github:”
+  - repository:
       owner: yonasyiheyis
       name: homebrew-rdv
-    name: rdv                  # formula name
+      token: "{{ .Env.RDV_TOKEN_GORELEASER }}"
+    name: rdv
     description: "Interactive dev‑env config manager"
     homepage: "https://github.com/yonasyiheyis/rdv"
     caveats: |
