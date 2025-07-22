@@ -42,7 +42,7 @@ brews:
   - repository:
       owner: yonasyiheyis
       name: homebrew-rdv
-      token: "{{ .Env.RDV_TOKEN_GORELEASER }}"
+      token: "{{ .Env.HOMEBREW_GITHUB_API_TOKEN }}"
     name: rdv
     description: "Interactive dev‑env config manager"
     homepage: "https://github.com/yonasyiheyis/rdv"
