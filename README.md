@@ -25,6 +25,7 @@ _Unique, interactive, one‑stop CLI for managing local & CI development sec
 ```bash
 brew tap yonasyiheyis/rdv
 brew install rdv            # upgrades with `brew upgrade rdv`
+```
 
 ### Manual (all OSes)
 
@@ -33,6 +34,7 @@ Download the latest binary from the [GitHub Releases page](https://github.co
 ```bash
 chmod +x rdv_0.1.4_darwin_arm64/rdv
 sudo mv rdv /usr/local/bin/
+```
 
 ### 🚀 Quick Start
 
@@ -48,7 +50,7 @@ rdv db postgres set-config --profile dev
 
 # 4. Inject DATABASE_URL for test scripts
 eval "$(rdv db postgres export --profile dev)"
-
+```
 Tip: add profile‑specific exports to files like .env.dev, .env.test, etc.
 
 ### 🖥️ Shell Completion
@@ -61,6 +63,7 @@ exec zsh
 # Bash (macOS)
 rdv completion bash > /usr/local/etc/bash_completion.d/rdv
 source /usr/local/etc/bash_completion.d/rdv
+```
 
 ### 🤝 Contributing
 
@@ -70,11 +73,13 @@ source /usr/local/etc/bash_completion.d/rdv
 
 ```bash
 brew install go golangci-lint
+```
 
 3. Ensure all checks pass before opening a PR:
 
 ```bash
 make lint test build
+```
 
 4. Submit a pull request with a clear description.
 
