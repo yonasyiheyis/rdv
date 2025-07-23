@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/ini.v1"
 
+	"github.com/yonasyiheyis/rdv/internal/logger"
 	"github.com/yonasyiheyis/rdv/internal/plugin"
 )
 
@@ -103,7 +104,7 @@ func runSet(profile string) error {
 		return err
 	}
 
-	fmt.Printf("✅ Credentials saved to %s (profile %q)\n", credentialsPath(), profile)
+	logger.L.Infow("✅ aws credentials saved", "profile", profile, "file", credentialsPath())
 	return nil
 }
 
