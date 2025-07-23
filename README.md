@@ -65,6 +65,14 @@ rdv completion bash > /usr/local/etc/bash_completion.d/rdv
 source /usr/local/etc/bash_completion.d/rdv
 ```
 
+### 🔧 Configuration Files Written
+
+| File                                   | Created by                   | Purpose                                  |
+| -------------------------------------- | ---------------------------- | ---------------------------------------- |
+| `~/.aws/credentials` / `~/.aws/config` | `rdv aws set-config`         | Standard AWS SDK files.                  |
+| `~/.config/rdv/db/postgres.yaml`       | `rdv db postgres set-config` | YAML storing multiple Postgres profiles. |
+
+
 ### 🤝 Contributing
 
 1. Fork the repo and clone it locally.
