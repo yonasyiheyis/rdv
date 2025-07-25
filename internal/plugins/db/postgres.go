@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/yonasyiheyis/rdv/internal/logger"
+	"github.com/yonasyiheyis/rdv/internal/ui"
 )
 
 type pgProfile struct {
@@ -25,6 +26,7 @@ type pgConfig struct {
 
 func newPostgresCmd() *cobra.Command {
 	var profile string
+	var testConn bool
 
 	pgCmd := &cobra.Command{
 		Use:   "postgres",
@@ -36,10 +38,34 @@ func newPostgresCmd() *cobra.Command {
 		Use:   "set-config",
 		Short: "Interactively set PostgreSQL connection info",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return pgSetConfig(profile)
+			return pgSetConfig(profile, testConn)
 		},
 	}
 	setCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
+	setCmd.Flags().BoolVar(&testConn, "test-conn", false, "try to connect after saving")
+
+	// ------- modify -------
+	modCmd := &cobra.Command{
+		Use:   "modify",
+		Short: "Modify an existing Postgres profile",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return pgModify(profile, testConn)
+		},
+	}
+	modCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
+	modCmd.Flags().BoolVar(&testConn, "test-conn", false, "try to connect after saving")
+	pgCmd.AddCommand(modCmd)
+
+	// ------- delete -----------
+	delCmd := &cobra.Command{
+		Use:   "delete",
+		Short: "Delete a Postgres profile",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return pgDelete(profile)
+		},
+	}
+	delCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
+	pgCmd.AddCommand(delCmd)
 
 	// ------- export -----------
 	expCmd := &cobra.Command{
@@ -57,7 +83,7 @@ func newPostgresCmd() *cobra.Command {
 
 /* ---------------- set-config ---------------- */
 
-func pgSetConfig(profile string) error {
+func pgSetConfig(profile string, testConn bool) error {
 	// interactive prompts
 	var in pgProfile
 	f := huh.NewForm(
@@ -91,6 +117,69 @@ func pgSetConfig(profile string) error {
 	}
 
 	logger.L.Infow("✅ PostgreSQL profile saved", "profile", profile, "file", postgresPath())
+	if testConn {
+		return testPgConn(in)
+	}
+	return nil
+}
+
+/* ---------------- modify ---------------- */
+func pgModify(profile string, testConn bool) error {
+	cfg, err := loadPgConfig()
+	if err != nil {
+		return err
+	}
+
+	cur := cfg.Profiles[profile] // zero if not found
+	in := cur
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().Title("Host").Value(&in.Host).Validate(huh.ValidateNotEmpty()),
+			huh.NewInput().Title("Port").Value(&in.Port).Validate(huh.ValidateNotEmpty()),
+			huh.NewInput().Title("Database").Value(&in.DBName).Validate(huh.ValidateNotEmpty()),
+			huh.NewInput().Title("Username").Value(&in.User).Validate(huh.ValidateNotEmpty()),
+			huh.NewInput().Title("Password").EchoMode(huh.EchoModePassword).Value(&in.Password).Validate(huh.ValidateNotEmpty()),
+		),
+	)
+	if err := form.Run(); err != nil {
+		return err
+	}
+
+	cfg.Profiles[profile] = in
+	if err := savePgConfig(cfg); err != nil {
+		return err
+	}
+
+	logger.L.Infow("pg profile modified", "profile", profile)
+	fmt.Printf("✅ Updated Postgres profile %q\n", profile)
+
+	if testConn {
+		return testPgConn(in)
+	}
+	return nil
+}
+
+/* ---------------- delete ---------------- */
+
+func pgDelete(profile string) error {
+	ok, err := ui.Confirm(fmt.Sprintf("Delete Postgres profile %q?", profile))
+	if err != nil || !ok {
+		return err
+	}
+
+	cfg, err := loadPgConfig()
+	if err != nil {
+		return err
+	}
+
+	delete(cfg.Profiles, profile)
+	if err := savePgConfig(cfg); err != nil {
+		return err
+	}
+
+	logger.L.Infow("pg profile deleted", "profile", profile)
+	fmt.Printf("🗑️  Deleted Postgres profile %q\n", profile)
 	return nil
 }
 
@@ -120,4 +209,18 @@ func pgExport(profile string) error {
 	fmt.Printf("export PGPASSWORD=%s\n", p.Password)
 	fmt.Printf("export PGDATABASE=%s\n", p.DBName)
 	return nil
+}
+
+func loadPgConfig() (pgConfig, error) {
+	cfg := pgConfig{Profiles: map[string]pgProfile{}}
+	b, err := os.ReadFile(postgresPath())
+	if err == nil {
+		_ = yaml.Unmarshal(b, &cfg)
+	}
+	return cfg, nil
+}
+
+func savePgConfig(cfg pgConfig) error {
+	out, _ := yaml.Marshal(cfg)
+	return os.WriteFile(postgresPath(), out, 0o600)
 }
