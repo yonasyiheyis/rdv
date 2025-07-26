@@ -6,15 +6,16 @@ _Unique, interactive, one‑stop CLI for managing local & CI development sec
 
 ## ✨ Key Features
 
-| Domain | Commands | What it does |
-|--------|----------|--------------|
-| **AWS** | `set-config`, `export`, `--profile` | Secure, TTY‑based prompt for `AWS_ACCESS_KEY_ID / SECRET_ACCESS_KEY / region`; writes to **`~/.aws/{credentials,config}`** and prints `export AWS_*` lines on demand. |
-| **PostgreSQL** | `db postgres set-config / export` | Prompts for host, port, db name, user, password; stores per‑profile YAML under **`~/.config/rdv/db/postgres.yaml`** and generates `DATABASE_URL` or individual `PG*` env vars. |
+| Domain        | Commands                                              | What it does |
+|---------------|--------------------------------------------------------|--------------|
+| **AWS**       | `set-config`, `modify`, `delete`, `export`, `--profile`, `--test-conn` | Interactive prompts for `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, region. Writes to `~/.aws/{credentials,config}`, can validate via STS, and prints `export AWS_*` lines. |
+| **PostgreSQL**| `db postgres set-config`, `modify`, `delete`, `export`, `--profile`, `--test-conn` | Prompts for host/port/user/password/dbname, stores YAML under `~/.config/rdv/db/postgres.yaml`, builds `DATABASE_URL`/`PG*` vars, and can test connectivity. |
 | **Plugin Architecture** | – | Each domain (AWS, DB, future GitHub, Stripe, etc.) is a Go plugin registered at build time—easy to extend. |
-| **Profiles** | `--profile dev` | Keep isolated configs (`default`, `dev`, `staging`, …). |
-| **Shell‑friendly** | `eval "$(rdv aws export)"` | Outputs `export` lines—source them or dump to `.env`. |
-| **Completions** | `rdv completion zsh` | Generates Bash, Zsh, Fish, PowerShell completion scripts. |
-| **Structured Logging** | `--debug` | Enable JSON/debug logs powered by zap. |
+| **Profiles**  | `--profile dev`                                       | Keep isolated configs (`default`, `dev`, `staging`, …). |
+| **Shell‑friendly** | `eval "$(rdv … export)"`                          | Outputs `export` lines—source them or dump to `.env`. |
+| **Completions** | `rdv completion zsh`                                 | Generates Bash, Zsh, Fish, PowerShell completion scripts. |
+| **Structured Logging** | `--debug`                                     | Enable JSON/debug logs powered by zap. |
+
 
 ---
 
@@ -39,19 +40,43 @@ sudo mv rdv /usr/local/bin/
 ### 🚀 Quick Start
 
 ```bash
-# 1. Configure an AWS profile interactively
-rdv aws set-config --profile dev
+# 1. Configure an AWS profile interactively (and verify it)
+rdv aws set-config --profile dev --test-conn
 
 # 2. Load the creds into your shell
 eval "$(rdv aws export --profile dev)"
 
-# 3. Configure a local Postgres DB
-rdv db postgres set-config --profile dev
+# 3. Modify or delete the AWS profile later
+rdv aws modify --profile dev --test-conn
+rdv aws delete --profile dev
 
-# 4. Inject DATABASE_URL for test scripts
+# 4. Configure a local Postgres DB (and verify it)
+rdv db postgres set-config --profile dev --test-conn
+
+# 5. Inject DATABASE_URL for test scripts
 eval "$(rdv db postgres export --profile dev)"
+
+# 6. Modify/Delete the Postgres profile
+rdv db postgres modify --profile dev --test-conn
+rdv db postgres delete --profile dev
 ```
 Tip: add profile‑specific exports to files like .env.dev, .env.test, etc.
+
+
+#### 🧪 Connection Testing (`--test-conn`)
+
+Add `--test-conn` to `set-config` or `modify` to immediately verify credentials:
+
+- **AWS**: calls STS `GetCallerIdentity` to ensure keys/region are valid.
+- **PostgreSQL**: opens a connection and pings the database.
+
+Example:
+
+```bash
+rdv aws set-config --profile prod --test-conn
+rdv db postgres modify --profile staging --test-conn
+```
+
 
 ### 🖥️ Shell Completion
 
