@@ -17,3 +17,7 @@ func configDir() string {
 func postgresPath() string {
 	return filepath.Join(configDir(), "postgres.yaml")
 }
+
+func mysqlPath() string {
+	return filepath.Join(configDir(), "mysql.yaml")
+}
