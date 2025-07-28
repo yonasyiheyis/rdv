@@ -91,7 +91,7 @@ type credsInput struct {
 	Region    string
 }
 
-// ---------- helpers (load/save/test) ----------
+// ---------- helpers (load/save) ----------
 
 func loadAWSProfile(profile string) (credsInput, error) {
 	out := credsInput{}

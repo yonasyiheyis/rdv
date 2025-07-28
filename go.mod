@@ -9,11 +9,13 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.34.1
 	github.com/charmbracelet/huh v0.7.0
 	github.com/go-sql-driver/mysql v1.9.3
+	github.com/google/go-github/v57 v57.0.0
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
+	golang.org/x/oauth2 v0.30.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -45,6 +47,7 @@ require (
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
