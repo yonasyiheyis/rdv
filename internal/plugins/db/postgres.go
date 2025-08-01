@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/yonasyiheyis/rdv/internal/envfile"
+	fflags "github.com/yonasyiheyis/rdv/internal/flags"
 	"github.com/yonasyiheyis/rdv/internal/logger"
 	"github.com/yonasyiheyis/rdv/internal/ui"
 )
@@ -68,14 +70,17 @@ func newPostgresCmd() *cobra.Command {
 	pgCmd.AddCommand(delCmd)
 
 	// ------- export -----------
+	var envPath string
+
 	expCmd := &cobra.Command{
 		Use:   "export",
 		Short: "Print DATABASE_URL (and PG* vars) for a profile",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return pgExport(profile)
+			return pgExport(profile, envPath)
 		},
 	}
 	expCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
+	fflags.AddEnvFileFlag(expCmd.Flags(), &envPath) // --env-file/-o flag
 
 	pgCmd.AddCommand(setCmd, expCmd)
 	return pgCmd
@@ -185,7 +190,7 @@ func pgDelete(profile string) error {
 
 /* ---------------- export ---------------- */
 
-func pgExport(profile string) error {
+func pgExport(profile string, envPath string) error {
 	b, err := os.ReadFile(postgresPath())
 	if err != nil {
 		return fmt.Errorf("could not read %s: %w", postgresPath(), err)
@@ -202,12 +207,26 @@ func pgExport(profile string) error {
 	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		p.User, p.Password, p.Host, p.Port, p.DBName)
 
-	fmt.Printf("export DATABASE_URL=\"%s\"\n", url)
-	fmt.Printf("export PGHOST=%s\n", p.Host)
-	fmt.Printf("export PGPORT=%s\n", p.Port)
-	fmt.Printf("export PGUSER=%s\n", p.User)
-	fmt.Printf("export PGPASSWORD=%s\n", p.Password)
-	fmt.Printf("export PGDATABASE=%s\n", p.DBName)
+	vars := map[string]string{
+		"PG_DATABASE_URL": url,
+		"PGHOST":          p.Host,
+		"PGPORT":          p.Port,
+		"PGUSER":          p.User,
+		"PGPASSWORD":      p.Password,
+		"PGDATABASE":      p.DBName,
+	}
+
+	if envPath != "" { // write/merge to .env
+		if err := envfile.WriteEnv(envPath, vars); err != nil {
+			return err
+		}
+		fmt.Printf("✅ wrote %d vars to %s\n", len(vars), envPath)
+		return nil
+	}
+
+	for k, v := range vars { // fallback: print exports
+		fmt.Printf("export %s=%s\n", k, v)
+	}
 	return nil
 }
 
