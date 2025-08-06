@@ -15,19 +15,23 @@ builds:
     goos:
       - darwin
       - linux
+      - windows
     goarch:
       - amd64
       - arm64
     ldflags:
       - -s -w
       - -X github.com/yonasyiheyis/rdv/internal/version.Version={{ .Version }}
-      - -X github.com/yonasyiheyis/rdv/internal/version.Commit={{ .Commit }}
+      - -X github.com/yonasyiheyis/rdv/internal/version.Commit={{ .ShortCommit }}
       - -X github.com/yonasyiheyis/rdv/internal/version.Date={{ .Date }}
 
 archives:
   - id: default
     ids: [rdv]                           # replaces deprecated 'builds'
     formats: [tar.gz]                    # replaces deprecated singular 'format'
+    format_overrides:                        # ← add this block
+      - goos: windows
+        format: zip                          # .zip for every Windows arch
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
