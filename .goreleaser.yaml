@@ -40,7 +40,18 @@ checksum:
 snapshot:
   version_template: "{{ .Tag }}-dev"     # replaces deprecated 'name_template'
 
-# No publishing/announcing config yet; we'll add later when ready
+dockers:
+  - image_templates:
+      - ghcr.io/yonasyiheyis/rdv:latest
+      - ghcr.io/yonasyiheyis/rdv:{{ .Version }}
+    dockerfile: ./Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    build_flag_templates:
+      - --build-arg=BUILDPLATFORM={{ .BuildPlatform }}
+    use: buildx
+    goarch: [amd64, arm64]
 
 brews:
   - repository:
