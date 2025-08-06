@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/ini.v1"
 
+	"github.com/yonasyiheyis/rdv/internal/envfile"
+	fflags "github.com/yonasyiheyis/rdv/internal/flags"
 	"github.com/yonasyiheyis/rdv/internal/logger"
 	"github.com/yonasyiheyis/rdv/internal/plugin"
 	"github.com/yonasyiheyis/rdv/internal/ui"
@@ -66,14 +68,16 @@ func (a *awsPlugin) Register(root *cobra.Command) {
 
 	// -------- export ----------------
 	var expProfile string
+	var envPath string
 	exportCmd := &cobra.Command{
 		Use:   "export",
 		Short: "Print AWS_* export lines for a profile",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runExport(expProfile)
+			return runExport(expProfile, envPath)
 		},
 	}
 	exportCmd.Flags().StringVarP(&expProfile, "profile", "p", "default", "AWS profile")
+	fflags.AddEnvFileFlag(exportCmd.Flags(), &envPath) // --env-file/-o flag
 
 	awsCmd.AddCommand(setCmd, modifyCmd, deleteCmd, exportCmd)
 	root.AddCommand(awsCmd)
@@ -235,7 +239,7 @@ func runDeleteAWS(profile string) error {
 	return nil
 }
 
-func runExport(profile string) error {
+func runExport(profile string, envPath string) error {
 	credINI, err := ini.Load(credentialsPath())
 	if err != nil {
 		return fmt.Errorf("failed to read credentials file: %w", err)
@@ -250,10 +254,24 @@ func runExport(profile string) error {
 	cfgINI, _ := ini.Load(configPath())
 	region := strings.TrimSpace(cfgINI.Section("profile " + profile).Key("region").String())
 
-	fmt.Printf("export AWS_ACCESS_KEY_ID=%s\n", id)
-	fmt.Printf("export AWS_SECRET_ACCESS_KEY=%s\n", secret)
+	vars := map[string]string{
+		"AWS_ACCESS_KEY_ID":     id,
+		"AWS_SECRET_ACCESS_KEY": secret,
+	}
 	if region != "" {
-		fmt.Printf("export AWS_DEFAULT_REGION=%s\n", region)
+		vars["AWS_DEFAULT_REGION"] = region
+	}
+
+	if envPath != "" { // write/merge to .env
+		if err := envfile.WriteEnv(envPath, vars); err != nil {
+			return err
+		}
+		fmt.Printf("✅ wrote %d vars to %s\n", len(vars), envPath)
+		return nil
+	}
+
+	for k, v := range vars { // fallback: print exports
+		fmt.Printf("export %s=%s\n", k, v)
 	}
 	return nil
 }

@@ -24,7 +24,7 @@ func TestPgURLFormat(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	require.NoError(t, pgExport("ci"))
+	require.NoError(t, pgExport("ci", ""))
 
 	_ = w.Close()
 	os.Stdout = old

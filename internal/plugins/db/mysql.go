@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/yonasyiheyis/rdv/internal/envfile"
+	fflags "github.com/yonasyiheyis/rdv/internal/flags"
 	"github.com/yonasyiheyis/rdv/internal/logger"
 	"github.com/yonasyiheyis/rdv/internal/ui"
 )
@@ -67,14 +69,17 @@ func newMySQLCmd() *cobra.Command {
 	delCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
 
 	// -------- export ------------
+	var envPath string
+
 	expCmd := &cobra.Command{
 		Use:   "export",
 		Short: "Print DATABASE_URL and MYSQL_* exports for a profile",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return mysqlExport(profile)
+			return mysqlExport(profile, envPath)
 		},
 	}
 	expCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
+	fflags.AddEnvFileFlag(expCmd.Flags(), &envPath) // --env-file/-o flag
 
 	mysqlCmd.AddCommand(setCmd, modCmd, delCmd, expCmd)
 	return mysqlCmd
@@ -187,7 +192,7 @@ func mysqlDelete(profile string) error {
 	return nil
 }
 
-func mysqlExport(profile string) error {
+func mysqlExport(profile string, envPath string) error {
 	cfg, err := loadMySQLConfig()
 	if err != nil {
 		return err
@@ -200,12 +205,26 @@ func mysqlExport(profile string) error {
 	dsn := buildMySQLDSN(p)
 	url := buildMySQLURL(p)
 
-	fmt.Printf("export DATABASE_URL=\"%s\"\n", url)
-	fmt.Printf("export MYSQL_DSN=\"%s\"\n", dsn)
-	fmt.Printf("export MYSQL_HOST=%s\n", p.Host)
-	fmt.Printf("export MYSQL_PORT=%s\n", p.Port)
-	fmt.Printf("export MYSQL_USER=%s\n", p.User)
-	fmt.Printf("export MYSQL_PASSWORD=%s\n", p.Password)
-	fmt.Printf("export MYSQL_DATABASE=%s\n", p.DBName)
+	vars := map[string]string{
+		"MYSQL_DATABASE_URL": url,
+		"MYSQL_DSN":          dsn,
+		"MYSQL_HOST":         p.Host,
+		"MYSQL_PORT":         p.Port,
+		"MYSQL_USER":         p.User,
+		"MYSQL_PASSWORD":     p.Password,
+		"MYSQL_DATABASE":     p.DBName,
+	}
+
+	if envPath != "" { // write/merge to .env
+		if err := envfile.WriteEnv(envPath, vars); err != nil {
+			return err
+		}
+		fmt.Printf("✅ wrote %d vars to %s\n", len(vars), envPath)
+		return nil
+	}
+
+	for k, v := range vars { // fallback: print exports
+		fmt.Printf("export %s=%s\n", k, v)
+	}
 	return nil
 }

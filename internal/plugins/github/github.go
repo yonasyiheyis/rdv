@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/yonasyiheyis/rdv/internal/envfile"
+	fflags "github.com/yonasyiheyis/rdv/internal/flags"
 	"github.com/yonasyiheyis/rdv/internal/logger"
 	"github.com/yonasyiheyis/rdv/internal/plugin"
 	"github.com/yonasyiheyis/rdv/internal/ui"
@@ -28,7 +30,7 @@ func (g *ghPlugin) Register(root *cobra.Command) {
 	var profile string
 	var testConn bool
 
-	// set-config
+	// -------- set-config ------------
 	setCmd := &cobra.Command{
 		Use:   "set-config",
 		Short: "Interactively set a GitHub token",
@@ -39,7 +41,7 @@ func (g *ghPlugin) Register(root *cobra.Command) {
 	setCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
 	setCmd.Flags().BoolVar(&testConn, "test-conn", false, "call GitHub API to validate token")
 
-	// modify
+	// -------- modify ----------------
 	modCmd := &cobra.Command{
 		Use:   "modify",
 		Short: "Modify an existing GitHub token profile",
@@ -50,7 +52,7 @@ func (g *ghPlugin) Register(root *cobra.Command) {
 	modCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
 	modCmd.Flags().BoolVar(&testConn, "test-conn", false, "validate after saving")
 
-	// delete
+	// -------- delete ----------------
 	delCmd := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete a GitHub token profile",
@@ -60,15 +62,18 @@ func (g *ghPlugin) Register(root *cobra.Command) {
 	}
 	delCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
 
-	// export
+	// -------- export ----------------
+	var envPath string
+
 	expCmd := &cobra.Command{
 		Use:   "export",
 		Short: "Print GITHUB_TOKEN export line (and optional vars)",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return ghExport(profile)
+			return ghExport(profile, envPath)
 		},
 	}
 	expCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
+	fflags.AddEnvFileFlag(expCmd.Flags(), &envPath) // --env-file/-o flag
 
 	ghCmd.AddCommand(setCmd, modCmd, delCmd, expCmd)
 	root.AddCommand(ghCmd)
@@ -198,7 +203,7 @@ func ghDelete(profile string) error {
 	return nil
 }
 
-func ghExport(profile string) error {
+func ghExport(profile string, envPath string) error {
 	cfg, err := loadCfg()
 	if err != nil {
 		return err
@@ -208,12 +213,26 @@ func ghExport(profile string) error {
 		return fmt.Errorf("profile %q not found in %s", profile, cfgPath())
 	}
 
-	fmt.Printf("export GITHUB_TOKEN=%s\n", p.Token)
+	vars := map[string]string{
+		"GITHUB_TOKEN": p.Token,
+	}
 	if p.APIBase != "" {
-		fmt.Printf("export GITHUB_API_BASE=%s\n", p.APIBase)
+		vars["GITHUB_API_BASE"] = p.APIBase
 	}
 	if p.User != "" {
-		fmt.Printf("export GITHUB_USER=%s\n", p.User)
+		vars["GITHUB_USER"] = p.User
+	}
+
+	if envPath != "" { // write/merge to .env
+		if err := envfile.WriteEnv(envPath, vars); err != nil {
+			return err
+		}
+		fmt.Printf("✅ wrote %d vars to %s\n", len(vars), envPath)
+		return nil
+	}
+
+	for k, v := range vars { // fallback: print exports
+		fmt.Printf("export %s=%s\n", k, v)
 	}
 	return nil
 }
