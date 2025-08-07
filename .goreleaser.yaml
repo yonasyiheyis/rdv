@@ -41,7 +41,7 @@ snapshot:
   version_template: "{{ .Tag }}-dev"     # replaces deprecated 'name_template'
 
 dockers:
-  # ---------- linux/amd64 layer ----------
+  # -------- linux/amd64 layer --------
   - id: linux_amd64
     image_templates:
       - ghcr.io/yonasyiheyis/rdv:{{ .Version }}-amd64
@@ -52,7 +52,7 @@ dockers:
     build_flag_templates:
       - --build-arg=BUILDPLATFORM={{ .BuildPlatform }}
 
-  # ---------- linux/arm64 layer ----------
+  # -------- linux/arm64 layer --------
   - id: linux_arm64
     image_templates:
       - ghcr.io/yonasyiheyis/rdv:{{ .Version }}-arm64
@@ -63,13 +63,13 @@ dockers:
     build_flag_templates:
       - --build-arg=BUILDPLATFORM={{ .BuildPlatform }}
 
-# multi-arch index that users will pull
-manifests:
+docker_manifests:
+  # version tag
   - name_template: ghcr.io/yonasyiheyis/rdv:{{ .Version }}
     image_templates:
       - ghcr.io/yonasyiheyis/rdv:{{ .Version }}-amd64
       - ghcr.io/yonasyiheyis/rdv:{{ .Version }}-arm64
-
+  # latest tag
   - name_template: ghcr.io/yonasyiheyis/rdv:latest
     image_templates:
       - ghcr.io/yonasyiheyis/rdv:{{ .Version }}-amd64
