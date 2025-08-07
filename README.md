@@ -1,5 +1,8 @@
 # **rdv – ReadyDev CLI**
 
+[![release](https://img.shields.io/github/v/release/yonasyiheyis/rdv)](https://github.com/yonasyiheyis/rdv/releases)
+[![docker](https://img.shields.io/badge/ghcr.io-rdv-blue?logo=docker)](https://github.com/users/yonasyiheyis/packages/container/package/rdv)
+
 _Unique, interactive, one‑stop CLI for managing local & CI development secrets and service credentials._
 
 ---
@@ -75,6 +78,23 @@ Example:
 ```bash
 rdv aws set-config --profile prod --test-conn
 rdv db postgres modify --profile staging --test-conn
+```
+
+### Docker (Linux/macOS/Windows)
+
+```bash
+docker run --rm ghcr.io/yonasyiheyis/rdv:latest rdv --help
+# mount your .aws or config dirs as needed:
+docker run --rm -v $HOME/.aws:/root/.aws ghcr.io/yonasyiheyis/rdv rdv aws export
+```
+
+### Windows (Scoop)
+
+```powershell
+# once you create a scoop bucket later; for now direct download
+curl -LO https://github.com/yonasyiheyis/rdv/releases/download/v0.4.0/rdv_0.4.0_windows_amd64.zip
+Expand-Archive rdv_0.4.0_windows_amd64.zip -DestinationPath C:\rdv
+setx PATH "%PATH%;C:\rdv"
 ```
 
 
