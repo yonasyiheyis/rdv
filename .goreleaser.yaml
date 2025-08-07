@@ -45,13 +45,14 @@ dockers:
       - ghcr.io/yonasyiheyis/rdv:latest
       - ghcr.io/yonasyiheyis/rdv:{{ .Version }}
     dockerfile: ./Dockerfile
-    platforms:
-      - linux/amd64
-      - linux/arm64
+    goarch: amd64
+    goos: linux
+    use: buildx
+    multiarch: true
+
+    # build args for both arch variants
     build_flag_templates:
       - --build-arg=BUILDPLATFORM={{ .BuildPlatform }}
-    use: buildx
-    goarch: [amd64, arm64]
 
 brews:
   - repository:
