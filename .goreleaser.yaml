@@ -41,18 +41,39 @@ snapshot:
   version_template: "{{ .Tag }}-dev"     # replaces deprecated 'name_template'
 
 dockers:
-  - image_templates:
-      - ghcr.io/yonasyiheyis/rdv:latest
-      - ghcr.io/yonasyiheyis/rdv:{{ .Version }}
+  # ---------- linux/amd64 layer ----------
+  - id: linux_amd64
+    image_templates:
+      - ghcr.io/yonasyiheyis/rdv:{{ .Version }}-amd64
     dockerfile: ./Dockerfile
-    goarch: amd64
     goos: linux
+    goarch: amd64
     use: buildx
-    multiarch: true
-
-    # build args for both arch variants
     build_flag_templates:
       - --build-arg=BUILDPLATFORM={{ .BuildPlatform }}
+
+  # ---------- linux/arm64 layer ----------
+  - id: linux_arm64
+    image_templates:
+      - ghcr.io/yonasyiheyis/rdv:{{ .Version }}-arm64
+    dockerfile: ./Dockerfile
+    goos: linux
+    goarch: arm64
+    use: buildx
+    build_flag_templates:
+      - --build-arg=BUILDPLATFORM={{ .BuildPlatform }}
+
+# multi-arch index that users will pull
+manifests:
+  - name_template: ghcr.io/yonasyiheyis/rdv:{{ .Version }}
+    image_templates:
+      - ghcr.io/yonasyiheyis/rdv:{{ .Version }}-amd64
+      - ghcr.io/yonasyiheyis/rdv:{{ .Version }}-arm64
+
+  - name_template: ghcr.io/yonasyiheyis/rdv:latest
+    image_templates:
+      - ghcr.io/yonasyiheyis/rdv:{{ .Version }}-amd64
+      - ghcr.io/yonasyiheyis/rdv:{{ .Version }}-arm64
 
 brews:
   - repository:
