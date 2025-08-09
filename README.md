@@ -15,7 +15,7 @@ _Unique, interactive, one‑stop CLI for managing local & CI development sec
 | **PostgreSQL**| `db postgres set-config`, `modify`, `delete`, `export`, `--profile`, `--test-conn` | Prompts for host/port/user/password/dbname, stores YAML under `~/.config/rdv/db/postgres.yaml`, builds `DATABASE_URL`/`PG*` vars, and can test connectivity. |
 | **Plugin Architecture** | – | Each domain (AWS, DB, future GitHub, Stripe, etc.) is a Go plugin registered at build time—easy to extend. |
 | **Profiles**  | `--profile dev`                                       | Keep isolated configs (`default`, `dev`, `staging`, …). |
-| **Shell‑friendly** | `eval "$(rdv … export)"`                          | Outputs `export` lines—source them or dump to `.env`. |
+| **Shell‑friendly** | • `eval "$(rdv … export)"` <br>• `--env-file`       | • Print `export` lines. <br>• write/merge directly into a `.env` file with `--env-file` path.|
 | **Completions** | `rdv completion zsh`                                 | Generates Bash, Zsh, Fish, PowerShell completion scripts. |
 | **Structured Logging** | `--debug`                                     | Enable JSON/debug logs powered by zap. |
 
@@ -78,6 +78,26 @@ Example:
 ```bash
 rdv aws set-config --profile prod --test-conn
 rdv db postgres modify --profile staging --test-conn
+```
+
+### 🗃️ Export to `.env` files
+
+All `export` commands support `--env-file` to write or merge environment variables directly into a file (great for `.env.dev`, `.env.test`, CI artifacts, etc.).
+
+Examples:
+
+```bash
+# AWS → .env.dev
+rdv aws export --profile dev --env-file .env.dev
+
+# Postgres → merge into the same file
+rdv db postgres export --profile dev --env-file .env.dev
+
+# MySQL
+rdv db mysql export --profile dev --env-file .env.dev
+
+# GitHub
+rdv github export --profile personal --env-file .env.dev
 ```
 
 ### Docker (Linux/macOS/Windows)
