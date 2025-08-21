@@ -10,10 +10,12 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/ini.v1"
 
+	"github.com/yonasyiheyis/rdv/internal/cli"
 	"github.com/yonasyiheyis/rdv/internal/envfile"
 	fflags "github.com/yonasyiheyis/rdv/internal/flags"
 	"github.com/yonasyiheyis/rdv/internal/logger"
 	"github.com/yonasyiheyis/rdv/internal/plugin"
+	iprint "github.com/yonasyiheyis/rdv/internal/print"
 	"github.com/yonasyiheyis/rdv/internal/ui"
 )
 
@@ -32,28 +34,41 @@ func (a *awsPlugin) Register(root *cobra.Command) {
 	// -------- set-config ------------
 	var setProfile string
 	var setTestConn bool
+	var setNoPrompt bool
+	var inAccess, inSecret, inRegion string
+
 	setCmd := &cobra.Command{
 		Use:   "set-config",
 		Short: "Interactively set AWS credentials",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runSet(setProfile, setTestConn)
+			return runSet(setProfile, setTestConn, setNoPrompt, inAccess, inSecret, inRegion)
 		},
 	}
+	fflags.AddNoPromptFlag(setCmd.Flags(), &setNoPrompt)
 	setCmd.Flags().StringVarP(&setProfile, "profile", "p", "default", "AWS profile")
 	setCmd.Flags().BoolVar(&setTestConn, "test-conn", false, "validate credentials with STS after saving")
+	setCmd.Flags().StringVar(&inAccess, "access-key", "", "AWS access key id")
+	setCmd.Flags().StringVar(&inSecret, "secret-key", "", "AWS secret access key")
+	setCmd.Flags().StringVar(&inRegion, "region", "", "AWS default region (e.g. us-east-1)")
 
 	// -------- modify ----------------
 	var modProfile string
 	var modTestConn bool
+	var modNoPrompt bool
+	var modAccess, modSecret, modRegion string
 	modifyCmd := &cobra.Command{
 		Use:   "modify",
 		Short: "Modify an existing AWS profile",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runModifyAWS(modProfile, modTestConn)
+			return runModifyAWS(modProfile, modTestConn, modNoPrompt, modAccess, modSecret, modRegion)
 		},
 	}
+	fflags.AddNoPromptFlag(modifyCmd.Flags(), &modNoPrompt)
 	modifyCmd.Flags().StringVarP(&modProfile, "profile", "p", "default", "AWS profile")
 	modifyCmd.Flags().BoolVar(&modTestConn, "test-conn", false, "validate credentials with STS after saving")
+	modifyCmd.Flags().StringVar(&modAccess, "access-key", "", "AWS access key id")
+	modifyCmd.Flags().StringVar(&modSecret, "secret-key", "", "AWS secret access key")
+	modifyCmd.Flags().StringVar(&modRegion, "region", "", "AWS default region")
 
 	// -------- delete ----------------
 	var delProfile string
@@ -79,7 +94,27 @@ func (a *awsPlugin) Register(root *cobra.Command) {
 	exportCmd.Flags().StringVarP(&expProfile, "profile", "p", "default", "AWS profile")
 	fflags.AddEnvFileFlag(exportCmd.Flags(), &envPath) // --env-file/-o flag
 
-	awsCmd.AddCommand(setCmd, modifyCmd, deleteCmd, exportCmd)
+	// -------- list ----------------
+	listCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List AWS profiles",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runListAWS()
+		},
+	}
+
+	// -------- show ----------------
+	var showProfile string
+	showCmd := &cobra.Command{
+		Use:   "show",
+		Short: "Show one AWS profile (redacted)",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runShowAWS(showProfile)
+		},
+	}
+	showCmd.Flags().StringVarP(&showProfile, "profile", "p", "default", "AWS profile")
+
+	awsCmd.AddCommand(setCmd, modifyCmd, deleteCmd, exportCmd, listCmd, showCmd)
 	root.AddCommand(awsCmd)
 }
 
@@ -149,20 +184,25 @@ func saveAWSProfile(profile string, in credsInput) error {
 
 // ---------- command impls ----------
 
-func runSet(profile string, testConn bool) error {
+func runSet(profile string, testConn, noPrompt bool, access, secret, region string) error {
 	in := credsInput{}
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().Title("AWS Access Key ID").Value(&in.AccessKey).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("AWS Secret Access Key").
-				EchoMode(huh.EchoModePassword).
-				Value(&in.SecretKey).
-				Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Default Region (e.g. us-east-1)").Value(&in.Region).Validate(huh.ValidateNotEmpty()),
-		),
-	)
-	if err := form.Run(); err != nil {
-		return err
+
+	if noPrompt || !cli.IsTerminal() {
+		if access == "" || secret == "" || region == "" {
+			return fmt.Errorf("missing required flags: --access-key, --secret-key, --region")
+		}
+		in.AccessKey, in.SecretKey, in.Region = access, secret, region
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().Title("AWS Access Key ID").Value(&in.AccessKey).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("AWS Secret Access Key").EchoMode(huh.EchoModePassword).Value(&in.SecretKey).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Default Region (e.g. us-east-1)").Value(&in.Region).Validate(huh.ValidateNotEmpty()),
+			),
+		)
+		if err := form.Run(); err != nil {
+			return err
+		}
 	}
 
 	if err := saveAWSProfile(profile, in); err != nil {
@@ -178,25 +218,37 @@ func runSet(profile string, testConn bool) error {
 	return nil
 }
 
-func runModifyAWS(profile string, testConn bool) error {
+func runModifyAWS(profile string, testConn, noPrompt bool, access, secret, region string) error {
 	current, err := loadAWSProfile(profile)
 	if err != nil {
 		return err
 	}
+	in := current
 
-	in := current // pre-fill
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().Title("AWS Access Key ID").Value(&in.AccessKey).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("AWS Secret Access Key").
-				EchoMode(huh.EchoModePassword).
-				Value(&in.SecretKey).
-				Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Default Region").Value(&in.Region).Validate(huh.ValidateNotEmpty()),
-		),
-	)
-	if err := form.Run(); err != nil {
-		return err
+	if noPrompt || !cli.IsTerminal() {
+		if access != "" {
+			in.AccessKey = access
+		}
+		if secret != "" {
+			in.SecretKey = secret
+		}
+		if region != "" {
+			in.Region = region
+		}
+		if in.AccessKey == "" || in.SecretKey == "" || in.Region == "" {
+			return fmt.Errorf("missing values; provide all with flags or run interactively")
+		}
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().Title("AWS Access Key ID").Value(&in.AccessKey).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("AWS Secret Access Key").EchoMode(huh.EchoModePassword).Value(&in.SecretKey).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Default Region").Value(&in.Region).Validate(huh.ValidateNotEmpty()),
+			),
+		)
+		if err := form.Run(); err != nil {
+			return err
+		}
 	}
 
 	if err := saveAWSProfile(profile, in); err != nil {
@@ -273,5 +325,42 @@ func runExport(profile string, envPath string) error {
 	for k, v := range vars { // fallback: print exports
 		fmt.Printf("export %s=%s\n", k, v)
 	}
+	return nil
+}
+
+func runListAWS() error {
+	credINI, _ := ini.Load(credentialsPath())
+	if credINI == nil {
+		fmt.Println("(no profiles)")
+		return nil
+	}
+	names := credINI.SectionStrings()
+	// remove the implicit "DEFAULT" section
+	count := 0
+	for _, n := range names {
+		if n == "DEFAULT" {
+			continue
+		}
+		fmt.Println(n)
+		count++
+	}
+	if count == 0 {
+		fmt.Println("(no profiles)")
+	}
+	return nil
+}
+
+func runShowAWS(profile string) error {
+	cur, err := loadAWSProfile(profile)
+	if err != nil {
+		return err
+	}
+	if cur.AccessKey == "" && cur.SecretKey == "" && cur.Region == "" {
+		return fmt.Errorf("profile %q not found", profile)
+	}
+	fmt.Printf("profile: %s\n", profile)
+	fmt.Printf("  access_key: %s\n", iprint.Redact(cur.AccessKey))
+	fmt.Printf("  secret_key: %s\n", iprint.Redact(cur.SecretKey))
+	fmt.Printf("  region    : %s\n", cur.Region)
 	return nil
 }

@@ -9,15 +9,18 @@ _Unique, interactive, one‑stop CLI for managing local & CI development sec
 
 ## ✨ Key Features
 
-| Domain        | Commands                                              | What it does |
-|---------------|--------------------------------------------------------|--------------|
-| **AWS**       | `set-config`, `modify`, `delete`, `export`, `--profile`, `--test-conn` | Interactive prompts for `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, region. Writes to `~/.aws/{credentials,config}`, can validate via STS, and prints `export AWS_*` lines. |
-| **PostgreSQL**| `db postgres set-config`, `modify`, `delete`, `export`, `--profile`, `--test-conn` | Prompts for host/port/user/password/dbname, stores YAML under `~/.config/rdv/db/postgres.yaml`, builds `DATABASE_URL`/`PG*` vars, and can test connectivity. |
-| **Plugin Architecture** | – | Each domain (AWS, DB, future GitHub, Stripe, etc.) is a Go plugin registered at build time—easy to extend. |
-| **Profiles**  | `--profile dev`                                       | Keep isolated configs (`default`, `dev`, `staging`, …). |
-| **Shell‑friendly** | • `eval "$(rdv … export)"` <br>• `--env-file`       | • Print `export` lines. <br>• write/merge directly into a `.env` file with `--env-file` path.|
-| **Completions** | `rdv completion zsh`                                 | Generates Bash, Zsh, Fish, PowerShell completion scripts. |
-| **Structured Logging** | `--debug`                                     | Enable JSON/debug logs powered by zap. |
+
+| Domain | Commands | What it does |
+|---|---|---|
+| **AWS** | `set-config`, `modify`, `delete`, `export`, `list`, `show` | Interactive **or** `--no-prompt` with flags; writes **`~/.aws/{credentials,config}`**; prints `export AWS_*` or writes with `--env-file`. |
+| **PostgreSQL** | `db postgres set-config / modify / delete / export / list / show` | Interactive **or** `--no-prompt` with flags; stores profiles in **`~/.config/rdv/db/postgres.yaml`**; prints `PG*`/`PG_DATABASE_URL` or writes with `--env-file`. |
+| **MySQL** | `db mysql set-config / modify / delete / export / list / show` | Interactive **or** `--no-prompt` with flags; stores profiles in **`~/.config/rdv/db/mysql.yaml`**; prints `MYSQL_*`/`MYSQL_DATABASE_URL` or writes with `--env-file`. |
+| **GitHub** | `github set-config / modify / delete / export / list / show` | Manage per-profile tokens; interactive **or** `--no-prompt` with flags; stores in **`~/.config/rdv/github.yaml`**; prints `GITHUB_TOKEN` (and optional vars) or writes with `--env-file`. |
+| **Plugin Architecture** | – | Each domain (AWS, DBs, GitHub) is a Go plugin registered at build time—easy to extend. |
+| **Profiles** | `--profile dev` | Keep isolated configs (`default`, `dev`, `staging`, …). |
+| **Shell-friendly** | `eval "$(rdv … export)"`, `--env-file` | Outputs `export` lines or merges to `.env` files for CI/agents. |
+| **Completions** | `rdv completion zsh` | Generates Bash, Zsh, Fish, PowerShell completion scripts. |
+| **Structured Logging** | `--debug` | Enable JSON/debug logs powered by zap. |
 
 
 ---
@@ -45,6 +48,8 @@ sudo mv rdv /usr/local/bin/
 ```bash
 # 1. Configure an AWS profile interactively (and verify it)
 rdv aws set-config --profile dev --test-conn
+rdv db mysql set-config --profile dev
+rdv github set-config --profile personal
 
 # 2. Load the creds into your shell
 eval "$(rdv aws export --profile dev)"
@@ -62,6 +67,16 @@ eval "$(rdv db postgres export --profile dev)"
 # 6. Modify/Delete the Postgres profile
 rdv db postgres modify --profile dev --test-conn
 rdv db postgres delete --profile dev
+
+# 7. List profiles
+rdv aws list
+rdv db postgres list
+rdv db mysql list
+rdv github list
+
+# 8. Show a single profile (secrets redacted)
+rdv db mysql show --profile ci
+rdv github show --profile bot
 ```
 Tip: add profile‑specific exports to files like .env.dev, .env.test, etc.
 
@@ -80,25 +95,28 @@ rdv aws set-config --profile prod --test-conn
 rdv db postgres modify --profile staging --test-conn
 ```
 
-### 🗃️ Export to `.env` files
+#### 🤖 Non-interactive mode (CI & agents)
 
-All `export` commands support `--env-file` to write or merge environment variables directly into a file (great for `.env.dev`, `.env.test`, CI artifacts, etc.).
+Every `set-config` and `modify` supports `--no-prompt` plus flags, so you can configure profiles without TTYs.
 
-Examples:
-
+**MySQL**
 ```bash
-# AWS → .env.dev
-rdv aws export --profile dev --env-file .env.dev
+rdv db mysql set-config --profile ci --no-prompt \
+  --host localhost --port 3306 --dbname app --user ci --password 's3cr3t' \
+  --params 'parseTime=true'
 
-# Postgres → merge into the same file
-rdv db postgres export --profile dev --env-file .env.dev
-
-# MySQL
-rdv db mysql export --profile dev --env-file .env.dev
-
-# GitHub
-rdv github export --profile personal --env-file .env.dev
+rdv db mysql modify --profile ci --no-prompt --port 3307
+rdv db mysql export --profile ci --env-file .env.ci
 ```
+
+**GitHub**
+```bash
+rdv github set-config --profile bot --no-prompt \
+  --token ghp_xxx --api-base https://api.github.com/
+
+rdv github export --profile bot --env-file .env.ci
+```
+(Interactive prompts remain available when --no-prompt is omitted.)
 
 ### Docker (Linux/macOS/Windows)
 
@@ -132,10 +150,12 @@ source /usr/local/etc/bash_completion.d/rdv
 
 ### 🔧 Configuration Files Written
 
-| File                                   | Created by                   | Purpose                                  |
-| -------------------------------------- | ---------------------------- | ---------------------------------------- |
-| `~/.aws/credentials` / `~/.aws/config` | `rdv aws set-config`         | Standard AWS SDK files.                  |
-| `~/.config/rdv/db/postgres.yaml`       | `rdv db postgres set-config` | YAML storing multiple Postgres profiles. |
+| File                                   | Created by                            | Purpose                                       |
+|----------------------------------------|---------------------------------------|-----------------------------------------------|
+| `~/.aws/credentials` / `~/.aws/config` | `rdv aws set-config`                  | Standard AWS SDK files.                       |
+| `~/.config/rdv/db/postgres.yaml`       | `rdv db postgres set-config`          | YAML storing multiple Postgres profiles.      |
+| `~/.config/rdv/db/mysql.yaml`          | `rdv db mysql set-config`             | YAML storing multiple MySQL profiles.         |
+| `~/.config/rdv/github.yaml`            | `rdv github set-config`               | YAML storing multiple GitHub token profiles.  |
 
 
 ### 🤝 Contributing
