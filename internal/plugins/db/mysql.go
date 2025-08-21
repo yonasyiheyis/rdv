@@ -8,9 +8,11 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/yonasyiheyis/rdv/internal/cli"
 	"github.com/yonasyiheyis/rdv/internal/envfile"
 	fflags "github.com/yonasyiheyis/rdv/internal/flags"
 	"github.com/yonasyiheyis/rdv/internal/logger"
+	iprint "github.com/yonasyiheyis/rdv/internal/print"
 	"github.com/yonasyiheyis/rdv/internal/ui"
 )
 
@@ -37,26 +39,46 @@ func newMySQLCmd() *cobra.Command {
 	}
 
 	// -------- set-config --------
+	var noPrompt bool
+	var inHost, inPort, inDB, inUser, inPass, inParams string
+
 	setCmd := &cobra.Command{
 		Use:   "set-config",
 		Short: "Interactively set MySQL connection info",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return mysqlSetConfig(profile, testConn)
+			return mysqlSetConfig(profile, testConn, noPrompt, inHost, inPort, inDB, inUser, inPass, inParams)
 		},
 	}
+	fflags.AddNoPromptFlag(setCmd.Flags(), &noPrompt)
 	setCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
 	setCmd.Flags().BoolVar(&testConn, "test-conn", false, "try to connect after saving")
+	setCmd.Flags().StringVar(&inHost, "host", "", "db host")
+	setCmd.Flags().StringVar(&inPort, "port", "", "db port")
+	setCmd.Flags().StringVar(&inDB, "dbname", "", "db name")
+	setCmd.Flags().StringVar(&inUser, "user", "", "db user")
+	setCmd.Flags().StringVar(&inPass, "password", "", "db password")
+	setCmd.Flags().StringVar(&inParams, "params", "", "extra DSN params (e.g. parseTime=true)")
 
 	// -------- modify ------------
+	var modNoPrompt bool
+	var mHost, mPort, mDB, mUser, mPass, mParams string
+
 	modCmd := &cobra.Command{
 		Use:   "modify",
 		Short: "Modify an existing MySQL profile",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return mysqlModify(profile, testConn)
+			return mysqlModify(profile, testConn, modNoPrompt, mHost, mPort, mDB, mUser, mPass, mParams)
 		},
 	}
+	fflags.AddNoPromptFlag(modCmd.Flags(), &modNoPrompt)
 	modCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
 	modCmd.Flags().BoolVar(&testConn, "test-conn", false, "try to connect after saving")
+	modCmd.Flags().StringVar(&mHost, "host", "", "db host")
+	modCmd.Flags().StringVar(&mPort, "port", "", "db port")
+	modCmd.Flags().StringVar(&mDB, "dbname", "", "db name")
+	modCmd.Flags().StringVar(&mUser, "user", "", "db user")
+	modCmd.Flags().StringVar(&mPass, "password", "", "db password")
+	modCmd.Flags().StringVar(&mParams, "params", "", "extra DSN params")
 
 	// -------- delete ------------
 	delCmd := &cobra.Command{
@@ -81,7 +103,23 @@ func newMySQLCmd() *cobra.Command {
 	expCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
 	fflags.AddEnvFileFlag(expCmd.Flags(), &envPath) // --env-file/-o flag
 
-	mysqlCmd.AddCommand(setCmd, modCmd, delCmd, expCmd)
+	// -------- list ------------
+	listCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List MySQL profiles",
+		RunE:  func(cmd *cobra.Command, _ []string) error { return mysqlList() },
+	}
+
+	// -------- show ------------
+	var showName string
+	showCmd := &cobra.Command{
+		Use:   "show",
+		Short: "Show MySQL profile (redacted)",
+		RunE:  func(cmd *cobra.Command, _ []string) error { return mysqlShow(showName) },
+	}
+	showCmd.Flags().StringVarP(&showName, "profile", "p", "default", "profile name")
+
+	mysqlCmd.AddCommand(setCmd, modCmd, delCmd, expCmd, listCmd, showCmd)
 	return mysqlCmd
 }
 
@@ -102,26 +140,36 @@ func saveMySQLConfig(cfg mysqlConfig) error {
 
 // ------------ command logic ------------
 
-func mysqlSetConfig(profile string, testConn bool) error {
+func mysqlSetConfig(profile string, testConn, noPrompt bool, host, port, db, user, pass, params string) error {
 	var in mysqlProfile
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().Title("Host").Value(&in.Host).Validate(huh.ValidateNotEmpty()).Placeholder("localhost"),
-			huh.NewInput().Title("Port").Value(&in.Port).Validate(huh.ValidateNotEmpty()).Placeholder("3306"),
-			huh.NewInput().Title("Database").Value(&in.DBName).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Username").Value(&in.User).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Password").EchoMode(huh.EchoModePassword).Value(&in.Password).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Params (optional)").Value(&in.Params).Placeholder("parseTime=true"),
-		),
-	)
-	if err := form.Run(); err != nil {
-		return err
+	if noPrompt || !cli.IsTerminal() {
+		if host == "" || port == "" || db == "" || user == "" || pass == "" {
+			return fmt.Errorf("missing required flags: --host --port --dbname --user --password")
+		}
+		in = mysqlProfile{Host: host, Port: port, DBName: db, User: user, Password: pass, Params: params}
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().Title("Host").Value(&in.Host).Validate(huh.ValidateNotEmpty()).Placeholder("localhost"),
+				huh.NewInput().Title("Port").Value(&in.Port).Validate(huh.ValidateNotEmpty()).Placeholder("3306"),
+				huh.NewInput().Title("Database").Value(&in.DBName).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Username").Value(&in.User).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Password").EchoMode(huh.EchoModePassword).Value(&in.Password).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Params (optional)").Value(&in.Params).Placeholder("parseTime=true"),
+			),
+		)
+		if err := form.Run(); err != nil {
+			return err
+		}
 	}
 
 	cfg, err := loadMySQLConfig()
 	if err != nil {
 		return err
+	}
+	if cfg.Profiles == nil {
+		cfg.Profiles = map[string]mysqlProfile{}
 	}
 	cfg.Profiles[profile] = in
 	if err := saveMySQLConfig(cfg); err != nil {
@@ -137,25 +185,49 @@ func mysqlSetConfig(profile string, testConn bool) error {
 	return nil
 }
 
-func mysqlModify(profile string, testConn bool) error {
+func mysqlModify(profile string, testConn, noPrompt bool, host, port, db, user, pass, params string) error {
 	cfg, err := loadMySQLConfig()
 	if err != nil {
 		return err
 	}
 	in := cfg.Profiles[profile] // zero if not found
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().Title("Host").Value(&in.Host).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Port").Value(&in.Port).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Database").Value(&in.DBName).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Username").Value(&in.User).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Password").EchoMode(huh.EchoModePassword).Value(&in.Password).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Params (optional)").Value(&in.Params),
-		),
-	)
-	if err := form.Run(); err != nil {
-		return err
+	if noPrompt || !cli.IsTerminal() {
+		if host != "" {
+			in.Host = host
+		}
+		if port != "" {
+			in.Port = port
+		}
+		if db != "" {
+			in.DBName = db
+		}
+		if user != "" {
+			in.User = user
+		}
+		if pass != "" {
+			in.Password = pass
+		}
+		if params != "" {
+			in.Params = params
+		}
+		if in.Host == "" || in.Port == "" || in.DBName == "" || in.User == "" || in.Password == "" {
+			return fmt.Errorf("missing values; provide all with flags or run interactively")
+		}
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().Title("Host").Value(&in.Host).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Port").Value(&in.Port).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Database").Value(&in.DBName).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Username").Value(&in.User).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Password").EchoMode(huh.EchoModePassword).Value(&in.Password).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Params (optional)").Value(&in.Params),
+			),
+		)
+		if err := form.Run(); err != nil {
+			return err
+		}
 	}
 
 	cfg.Profiles[profile] = in
@@ -225,6 +297,36 @@ func mysqlExport(profile string, envPath string) error {
 
 	for k, v := range vars { // fallback: print exports
 		fmt.Printf("export %s=%s\n", k, v)
+	}
+	return nil
+}
+
+func mysqlList() error {
+	cfg, _ := loadMySQLConfig()
+	if len(cfg.Profiles) == 0 {
+		fmt.Println("(no profiles)")
+		return nil
+	}
+	for name := range cfg.Profiles {
+		fmt.Println(name)
+	}
+	return nil
+}
+
+func mysqlShow(name string) error {
+	cfg, _ := loadMySQLConfig()
+	p, ok := cfg.Profiles[name]
+	if !ok {
+		return fmt.Errorf("profile %q not found", name)
+	}
+	fmt.Printf("profile: %s\n", name)
+	fmt.Printf("  host    : %s\n", p.Host)
+	fmt.Printf("  port    : %s\n", p.Port)
+	fmt.Printf("  dbname  : %s\n", p.DBName)
+	fmt.Printf("  user    : %s\n", p.User)
+	fmt.Printf("  password: %s\n", iprint.Redact(p.Password))
+	if p.Params != "" {
+		fmt.Printf("  params  : %s\n", p.Params)
 	}
 	return nil
 }

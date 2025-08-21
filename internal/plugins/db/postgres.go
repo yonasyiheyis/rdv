@@ -8,9 +8,11 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/yonasyiheyis/rdv/internal/cli"
 	"github.com/yonasyiheyis/rdv/internal/envfile"
 	fflags "github.com/yonasyiheyis/rdv/internal/flags"
 	"github.com/yonasyiheyis/rdv/internal/logger"
+	iprint "github.com/yonasyiheyis/rdv/internal/print"
 	"github.com/yonasyiheyis/rdv/internal/ui"
 )
 
@@ -36,27 +38,44 @@ func newPostgresCmd() *cobra.Command {
 	}
 
 	// ------- set-config -------
+	var noPrompt bool
+	var inHost, inPort, inDB, inUser, inPass string
+
 	setCmd := &cobra.Command{
 		Use:   "set-config",
 		Short: "Interactively set PostgreSQL connection info",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return pgSetConfig(profile, testConn)
+			return pgSetConfig(profile, testConn, noPrompt, inHost, inPort, inDB, inUser, inPass)
 		},
 	}
+	fflags.AddNoPromptFlag(setCmd.Flags(), &noPrompt)
 	setCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
 	setCmd.Flags().BoolVar(&testConn, "test-conn", false, "try to connect after saving")
+	setCmd.Flags().StringVar(&inHost, "host", "", "db host")
+	setCmd.Flags().StringVar(&inPort, "port", "", "db port")
+	setCmd.Flags().StringVar(&inDB, "dbname", "", "db name")
+	setCmd.Flags().StringVar(&inUser, "user", "", "db user")
+	setCmd.Flags().StringVar(&inPass, "password", "", "db password")
 
 	// ------- modify -------
+	var modNoPrompt bool
+	var mHost, mPort, mDB, mUser, mPass string
+
 	modCmd := &cobra.Command{
 		Use:   "modify",
 		Short: "Modify an existing Postgres profile",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return pgModify(profile, testConn)
+			return pgModify(profile, testConn, modNoPrompt, mHost, mPort, mDB, mUser, mPass)
 		},
 	}
+	fflags.AddNoPromptFlag(modCmd.Flags(), &modNoPrompt)
 	modCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
 	modCmd.Flags().BoolVar(&testConn, "test-conn", false, "try to connect after saving")
-	pgCmd.AddCommand(modCmd)
+	modCmd.Flags().StringVar(&mHost, "host", "", "db host")
+	modCmd.Flags().StringVar(&mPort, "port", "", "db port")
+	modCmd.Flags().StringVar(&mDB, "dbname", "", "db name")
+	modCmd.Flags().StringVar(&mUser, "user", "", "db user")
+	modCmd.Flags().StringVar(&mPass, "password", "", "db password")
 
 	// ------- delete -----------
 	delCmd := &cobra.Command{
@@ -67,7 +86,6 @@ func newPostgresCmd() *cobra.Command {
 		},
 	}
 	delCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
-	pgCmd.AddCommand(delCmd)
 
 	// ------- export -----------
 	var envPath string
@@ -82,26 +100,52 @@ func newPostgresCmd() *cobra.Command {
 	expCmd.Flags().StringVarP(&profile, "profile", "p", "default", "profile name")
 	fflags.AddEnvFileFlag(expCmd.Flags(), &envPath) // --env-file/-o flag
 
-	pgCmd.AddCommand(setCmd, expCmd)
+	// ------- list ------------
+	listCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List Postgres profiles",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return pgList()
+		},
+	}
+
+	// ------- show ------------
+	var showName string
+	showCmd := &cobra.Command{
+		Use:   "show",
+		Short: "Show Postgres profile (redacted)",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return pgShow(showName)
+		},
+	}
+	showCmd.Flags().StringVarP(&showName, "profile", "p", "default", "profile name")
+
+	pgCmd.AddCommand(setCmd, modCmd, delCmd, expCmd, listCmd, showCmd)
 	return pgCmd
 }
 
 /* ---------------- set-config ---------------- */
-
-func pgSetConfig(profile string, testConn bool) error {
-	// interactive prompts
+func pgSetConfig(profile string, testConn, noPrompt bool, host, port, db, user, pass string) error {
 	var in pgProfile
-	f := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().Title("Host").Value(&in.Host).Placeholder("localhost").Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Port").Value(&in.Port).Placeholder("5432").Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Database").Value(&in.DBName).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Username").Value(&in.User).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Password").EchoMode(huh.EchoModePassword).Value(&in.Password).Validate(huh.ValidateNotEmpty()),
-		),
-	)
-	if err := f.Run(); err != nil {
-		return err // cancelled
+
+	if noPrompt || !cli.IsTerminal() {
+		if host == "" || port == "" || db == "" || user == "" || pass == "" {
+			return fmt.Errorf("missing required flags: --host --port --dbname --user --password")
+		}
+		in = pgProfile{Host: host, Port: port, DBName: db, User: user, Password: pass}
+	} else {
+		f := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().Title("Host").Value(&in.Host).Placeholder("localhost").Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Port").Value(&in.Port).Placeholder("5432").Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Database").Value(&in.DBName).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Username").Value(&in.User).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Password").EchoMode(huh.EchoModePassword).Value(&in.Password).Validate(huh.ValidateNotEmpty()),
+			),
+		)
+		if err := f.Run(); err != nil {
+			return err
+		}
 	}
 
 	// ensure dir
@@ -109,12 +153,11 @@ func pgSetConfig(profile string, testConn bool) error {
 		return err
 	}
 
-	// read existing file if exists
+	// read, merge, save
 	cfg := pgConfig{Profiles: map[string]pgProfile{}}
 	if b, err := os.ReadFile(postgresPath()); err == nil {
 		_ = yaml.Unmarshal(b, &cfg)
 	}
-
 	cfg.Profiles[profile] = in
 	out, _ := yaml.Marshal(cfg)
 	if err := os.WriteFile(postgresPath(), out, 0o600); err != nil {
@@ -129,26 +172,45 @@ func pgSetConfig(profile string, testConn bool) error {
 }
 
 /* ---------------- modify ---------------- */
-func pgModify(profile string, testConn bool) error {
+func pgModify(profile string, testConn, noPrompt bool, host, port, db, user, pass string) error {
 	cfg, err := loadPgConfig()
 	if err != nil {
 		return err
 	}
+	in := cfg.Profiles[profile] // zero if missing
 
-	cur := cfg.Profiles[profile] // zero if not found
-	in := cur
-
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().Title("Host").Value(&in.Host).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Port").Value(&in.Port).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Database").Value(&in.DBName).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Username").Value(&in.User).Validate(huh.ValidateNotEmpty()),
-			huh.NewInput().Title("Password").EchoMode(huh.EchoModePassword).Value(&in.Password).Validate(huh.ValidateNotEmpty()),
-		),
-	)
-	if err := form.Run(); err != nil {
-		return err
+	if noPrompt || !cli.IsTerminal() {
+		if host != "" {
+			in.Host = host
+		}
+		if port != "" {
+			in.Port = port
+		}
+		if db != "" {
+			in.DBName = db
+		}
+		if user != "" {
+			in.User = user
+		}
+		if pass != "" {
+			in.Password = pass
+		}
+		if in.Host == "" || in.Port == "" || in.DBName == "" || in.User == "" || in.Password == "" {
+			return fmt.Errorf("missing values; provide all with flags or run interactively")
+		}
+	} else {
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().Title("Host").Value(&in.Host).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Port").Value(&in.Port).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Database").Value(&in.DBName).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Username").Value(&in.User).Validate(huh.ValidateNotEmpty()),
+				huh.NewInput().Title("Password").EchoMode(huh.EchoModePassword).Value(&in.Password).Validate(huh.ValidateNotEmpty()),
+			),
+		)
+		if err := form.Run(); err != nil {
+			return err
+		}
 	}
 
 	cfg.Profiles[profile] = in
@@ -242,4 +304,33 @@ func loadPgConfig() (pgConfig, error) {
 func savePgConfig(cfg pgConfig) error {
 	out, _ := yaml.Marshal(cfg)
 	return os.WriteFile(postgresPath(), out, 0o600)
+}
+
+/* ---------------- list ---------------- */
+func pgList() error {
+	cfg, _ := loadPgConfig()
+	if len(cfg.Profiles) == 0 {
+		fmt.Println("(no profiles)")
+		return nil
+	}
+	for name := range cfg.Profiles {
+		fmt.Println(name)
+	}
+	return nil
+}
+
+/* ---------------- show ---------------- */
+func pgShow(name string) error {
+	cfg, _ := loadPgConfig()
+	p, ok := cfg.Profiles[name]
+	if !ok {
+		return fmt.Errorf("profile %q not found", name)
+	}
+	fmt.Printf("profile: %s\n", name)
+	fmt.Printf("  host    : %s\n", p.Host)
+	fmt.Printf("  port    : %s\n", p.Port)
+	fmt.Printf("  dbname  : %s\n", p.DBName)
+	fmt.Printf("  user    : %s\n", p.User)
+	fmt.Printf("  password: %s\n", iprint.Redact(p.Password))
+	return nil
 }
