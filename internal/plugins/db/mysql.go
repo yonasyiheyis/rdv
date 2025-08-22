@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
@@ -291,8 +292,19 @@ func mysqlExport(profile string, envPath string) error {
 		if err := envfile.WriteEnv(envPath, vars); err != nil {
 			return err
 		}
+		if iprint.JSON {
+			return iprint.Out(map[string]any{
+				"written": len(vars),
+				"path":    envPath,
+				"vars":    vars,
+			})
+		}
 		fmt.Printf("✅ wrote %d vars to %s\n", len(vars), envPath)
 		return nil
+	}
+
+	if iprint.JSON {
+		return iprint.Out(vars)
 	}
 
 	for k, v := range vars { // fallback: print exports
@@ -304,11 +316,22 @@ func mysqlExport(profile string, envPath string) error {
 func mysqlList() error {
 	cfg, _ := loadMySQLConfig()
 	if len(cfg.Profiles) == 0 {
+		if iprint.JSON {
+			return iprint.Out(map[string]any{"profiles": []string{}})
+		}
 		fmt.Println("(no profiles)")
 		return nil
 	}
+	names := make([]string, 0, len(cfg.Profiles))
 	for name := range cfg.Profiles {
-		fmt.Println(name)
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	if iprint.JSON {
+		return iprint.Out(map[string]any{"profiles": names})
+	}
+	for _, n := range names {
+		fmt.Println(n)
 	}
 	return nil
 }
@@ -318,6 +341,20 @@ func mysqlShow(name string) error {
 	p, ok := cfg.Profiles[name]
 	if !ok {
 		return fmt.Errorf("profile %q not found", name)
+	}
+	payload := map[string]any{
+		"profile": name,
+		"host":    p.Host,
+		"port":    p.Port,
+		"dbname":  p.DBName,
+		"user":    p.User,
+		"params":  p.Params,
+		// Redact
+		"password": iprint.Redact(p.Password),
+	}
+
+	if iprint.JSON {
+		return iprint.Out(payload)
 	}
 	fmt.Printf("profile: %s\n", name)
 	fmt.Printf("  host    : %s\n", p.Host)
