@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/huh"
@@ -318,8 +319,19 @@ func runExport(profile string, envPath string) error {
 		if err := envfile.WriteEnv(envPath, vars); err != nil {
 			return err
 		}
+		if iprint.JSON {
+			return iprint.Out(map[string]any{
+				"written": len(vars),
+				"path":    envPath,
+				"vars":    vars,
+			})
+		}
 		fmt.Printf("✅ wrote %d vars to %s\n", len(vars), envPath)
 		return nil
+	}
+
+	if iprint.JSON {
+		return iprint.Out(vars)
 	}
 
 	for k, v := range vars { // fallback: print exports
@@ -329,23 +341,42 @@ func runExport(profile string, envPath string) error {
 }
 
 func runListAWS() error {
-	credINI, _ := ini.Load(credentialsPath())
-	if credINI == nil {
+	namesSet := map[string]struct{}{}
+
+	if credINI, err := ini.Load(credentialsPath()); err == nil {
+		for _, s := range credINI.Sections() {
+			n := s.Name()
+			if n == "DEFAULT" || n == "" {
+				continue
+			}
+			namesSet[n] = struct{}{}
+		}
+	}
+	if cfgINI, err := ini.Load(configPath()); err == nil {
+		for _, s := range cfgINI.Sections() {
+			n := strings.TrimPrefix(s.Name(), "profile ")
+			if n == "DEFAULT" || n == "" {
+				continue
+			}
+			namesSet[n] = struct{}{}
+		}
+	}
+
+	names := make([]string, 0, len(namesSet))
+	for n := range namesSet {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+
+	if iprint.JSON {
+		return iprint.Out(map[string]any{"profiles": names})
+	}
+	if len(names) == 0 {
 		fmt.Println("(no profiles)")
 		return nil
 	}
-	names := credINI.SectionStrings()
-	// remove the implicit "DEFAULT" section
-	count := 0
 	for _, n := range names {
-		if n == "DEFAULT" {
-			continue
-		}
 		fmt.Println(n)
-		count++
-	}
-	if count == 0 {
-		fmt.Println("(no profiles)")
 	}
 	return nil
 }
@@ -358,6 +389,17 @@ func runShowAWS(profile string) error {
 	if cur.AccessKey == "" && cur.SecretKey == "" && cur.Region == "" {
 		return fmt.Errorf("profile %q not found", profile)
 	}
+
+	payload := map[string]any{
+		"profile":    profile,
+		"access_key": iprint.Redact(cur.AccessKey),
+		"secret_key": iprint.Redact(cur.SecretKey),
+		"region":     cur.Region,
+	}
+	if iprint.JSON {
+		return iprint.Out(payload)
+	}
+
 	fmt.Printf("profile: %s\n", profile)
 	fmt.Printf("  access_key: %s\n", iprint.Redact(cur.AccessKey))
 	fmt.Printf("  secret_key: %s\n", iprint.Redact(cur.SecretKey))

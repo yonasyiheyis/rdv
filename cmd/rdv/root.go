@@ -13,6 +13,7 @@ import (
 	// Internal packages
 	"github.com/yonasyiheyis/rdv/internal/logger"
 	"github.com/yonasyiheyis/rdv/internal/plugin"
+	iprint "github.com/yonasyiheyis/rdv/internal/print"
 	"github.com/yonasyiheyis/rdv/internal/version"
 
 	// --- side‑effect plugin imports ---
@@ -23,6 +24,7 @@ import (
 
 var (
 	cfgFile string
+	jsonOut bool
 	debug   bool
 	log     *zap.SugaredLogger
 )
@@ -41,6 +43,7 @@ deletes, and exports configuration for AWS, databases, GitHub, and more.`,
 	// Global flags
 	cmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default: $HOME/.config/rdv/rdv.yaml)")
 	cmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug output")
+	cmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "output machine-readable JSON")
 
 	// Built‑in Cobra version flag override to show full details
 	cmd.SetVersionTemplate(fmt.Sprintf("rdv %s (commit: %s, date: %s)\n",
@@ -64,6 +67,7 @@ deletes, and exports configuration for AWS, databases, GitHub, and more.`,
 		}
 		log = zl.Sugar()
 		logger.L = log // make available to plugins
+		iprint.SetJSON(jsonOut)
 		return nil
 	}
 

@@ -21,6 +21,7 @@ _Unique, interactive, one‑stop CLI for managing local & CI development sec
 | **Shell-friendly** | `eval "$(rdv … export)"`, `--env-file` | Outputs `export` lines or merges to `.env` files for CI/agents. |
 | **Completions** | `rdv completion zsh` | Generates Bash, Zsh, Fish, PowerShell completion scripts. |
 | **Structured Logging** | `--debug` | Enable JSON/debug logs powered by zap. |
+| **JSON output** | `--json` on `list` / `show` | Stable, sorted output for agents/CI across AWS, Postgres, MySQL, GitHub. |
 
 
 ---
@@ -39,7 +40,7 @@ brew install rdv            # upgrades with `brew upgrade rdv`
 Download the latest binary from the [GitHub Releases page](https://github.com/yonasyiheyis/rdv/releases), then move it into your `$PATH` and make it executable:
 
 ```bash
-chmod +x rdv_0.1.4_darwin_arm64/rdv
+chmod +x rdv_0.6.0_darwin_arm64/rdv
 sudo mv rdv /usr/local/bin/
 ```
 
@@ -77,8 +78,14 @@ rdv github list
 # 8. Show a single profile (secrets redacted)
 rdv db mysql show --profile ci
 rdv github show --profile bot
+
+# 9. Machine-readable (JSON) examples
+rdv aws list --json
+rdv db postgres show --profile dev --json
 ```
-Tip: add profile‑specific exports to files like .env.dev, .env.test, etc.
+Tips: 
+- add profile‑specific exports to files like .env.dev, .env.test, etc.
+- JSON output is available on `list` and `show` for all plugins via `--json`, and lists are sorted for deterministic results.
 
 
 #### 🧪 Connection Testing (`--test-conn`)
@@ -130,8 +137,8 @@ docker run --rm -v $HOME/.aws:/root/.aws ghcr.io/yonasyiheyis/rdv rdv aws export
 
 ```powershell
 # once you create a scoop bucket later; for now direct download
-curl -LO https://github.com/yonasyiheyis/rdv/releases/download/v0.4.0/rdv_0.4.0_windows_amd64.zip
-Expand-Archive rdv_0.4.0_windows_amd64.zip -DestinationPath C:\rdv
+curl -LO https://github.com/yonasyiheyis/rdv/releases/download/v0.6.0/rdv_0.6.0_windows_amd64.zip
+Expand-Archive rdv_0.6.0_windows_amd64.zip -DestinationPath C:\rdv
 setx PATH "%PATH%;C:\rdv"
 ```
 
