@@ -183,6 +183,32 @@ func saveAWSProfile(profile string, in credsInput) error {
 	return cfgINI.SaveTo(configPath())
 }
 
+// ExportVars returns the map of AWS_* variables for the given profile.
+func ExportVars(profile string) (map[string]string, error) {
+	credINI, err := ini.Load(credentialsPath())
+	if err != nil {
+		return nil, fmt.Errorf("failed to read credentials file: %w", err)
+	}
+	sec := credINI.Section(profile)
+	id := strings.TrimSpace(sec.Key("aws_access_key_id").String())
+	secret := strings.TrimSpace(sec.Key("aws_secret_access_key").String())
+	if id == "" || secret == "" {
+		return nil, fmt.Errorf("profile %q not found in %s", profile, credentialsPath())
+	}
+
+	cfgINI, _ := ini.Load(configPath())
+	region := strings.TrimSpace(cfgINI.Section("profile " + profile).Key("region").String())
+
+	vars := map[string]string{
+		"AWS_ACCESS_KEY_ID":     id,
+		"AWS_SECRET_ACCESS_KEY": secret,
+	}
+	if region != "" {
+		vars["AWS_DEFAULT_REGION"] = region
+	}
+	return vars, nil
+}
+
 // ---------- command impls ----------
 
 func runSet(profile string, testConn, noPrompt bool, access, secret, region string) error {
@@ -293,26 +319,9 @@ func runDeleteAWS(profile string) error {
 }
 
 func runExport(profile string, envPath string) error {
-	credINI, err := ini.Load(credentialsPath())
+	vars, err := ExportVars(profile)
 	if err != nil {
-		return fmt.Errorf("failed to read credentials file: %w", err)
-	}
-	sec := credINI.Section(profile)
-	id := strings.TrimSpace(sec.Key("aws_access_key_id").String())
-	secret := strings.TrimSpace(sec.Key("aws_secret_access_key").String())
-	if id == "" || secret == "" {
-		return fmt.Errorf("profile %q not found in %s", profile, credentialsPath())
-	}
-
-	cfgINI, _ := ini.Load(configPath())
-	region := strings.TrimSpace(cfgINI.Section("profile " + profile).Key("region").String())
-
-	vars := map[string]string{
-		"AWS_ACCESS_KEY_ID":     id,
-		"AWS_SECRET_ACCESS_KEY": secret,
-	}
-	if region != "" {
-		vars["AWS_DEFAULT_REGION"] = region
+		return err
 	}
 
 	if envPath != "" { // write/merge to .env
