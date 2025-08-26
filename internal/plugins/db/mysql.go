@@ -139,6 +139,31 @@ func saveMySQLConfig(cfg mysqlConfig) error {
 	return os.WriteFile(mysqlPath(), out, 0o600)
 }
 
+// MySQLExportVars builds the MySQL env var map for a profile.
+func MySQLExportVars(profile string) (map[string]string, error) {
+	cfg, err := loadMySQLConfig()
+	if err != nil {
+		return nil, err
+	}
+	p, ok := cfg.Profiles[profile]
+	if !ok {
+		return nil, fmt.Errorf("profile %q not found in %s", profile, mysqlPath())
+	}
+
+	dsn := buildMySQLDSN(p)
+	url := buildMySQLURL(p)
+
+	return map[string]string{
+		"MYSQL_DATABASE_URL": url,
+		"MYSQL_DSN":          dsn,
+		"MYSQL_HOST":         p.Host,
+		"MYSQL_PORT":         p.Port,
+		"MYSQL_USER":         p.User,
+		"MYSQL_PASSWORD":     p.Password,
+		"MYSQL_DATABASE":     p.DBName,
+	}, nil
+}
+
 // ------------ command logic ------------
 
 func mysqlSetConfig(profile string, testConn, noPrompt bool, host, port, db, user, pass, params string) error {
@@ -266,26 +291,9 @@ func mysqlDelete(profile string) error {
 }
 
 func mysqlExport(profile string, envPath string) error {
-	cfg, err := loadMySQLConfig()
+	vars, err := MySQLExportVars(profile)
 	if err != nil {
 		return err
-	}
-	p, ok := cfg.Profiles[profile]
-	if !ok {
-		return fmt.Errorf("profile %q not found in %s", profile, mysqlPath())
-	}
-
-	dsn := buildMySQLDSN(p)
-	url := buildMySQLURL(p)
-
-	vars := map[string]string{
-		"MYSQL_DATABASE_URL": url,
-		"MYSQL_DSN":          dsn,
-		"MYSQL_HOST":         p.Host,
-		"MYSQL_PORT":         p.Port,
-		"MYSQL_USER":         p.User,
-		"MYSQL_PASSWORD":     p.Password,
-		"MYSQL_DATABASE":     p.DBName,
 	}
 
 	if envPath != "" { // write/merge to .env

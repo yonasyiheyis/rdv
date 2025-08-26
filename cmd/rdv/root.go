@@ -77,6 +77,7 @@ deletes, and exports configuration for AWS, databases, GitHub, and more.`,
 	// Placeholder for future sub‑commands; leaving root runnable alone.
 
 	cmd.AddCommand(newCompletionCmd())
+	cmd.AddCommand(newEnvCmd())
 
 	// ----- Load plugin sub‑commands -----
 	plugin.LoadAll(cmd)

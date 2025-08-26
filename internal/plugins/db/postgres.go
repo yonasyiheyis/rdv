@@ -125,6 +125,37 @@ func newPostgresCmd() *cobra.Command {
 	return pgCmd
 }
 
+// ---------- helpers ----------
+
+// PGExportVars builds the Postgres env var map for a profile.
+func PGExportVars(profile string) (map[string]string, error) {
+	b, err := os.ReadFile(postgresPath())
+	if err != nil {
+		return nil, fmt.Errorf("could not read %s: %w", postgresPath(), err)
+	}
+	var cfg pgConfig
+	if err := yaml.Unmarshal(b, &cfg); err != nil {
+		return nil, err
+	}
+	p, ok := cfg.Profiles[profile]
+	if !ok {
+		return nil, fmt.Errorf("profile %q not found in %s", profile, postgresPath())
+	}
+
+	// Build URL (disable SSL by default for local dev)
+	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		p.User, p.Password, p.Host, p.Port, p.DBName)
+
+	return map[string]string{
+		"PG_DATABASE_URL": url,
+		"PGHOST":          p.Host,
+		"PGPORT":          p.Port,
+		"PGUSER":          p.User,
+		"PGPASSWORD":      p.Password,
+		"PGDATABASE":      p.DBName,
+	}, nil
+}
+
 /* ---------------- set-config ---------------- */
 func pgSetConfig(profile string, testConn, noPrompt bool, host, port, db, user, pass string) error {
 	var in pgProfile
@@ -254,29 +285,9 @@ func pgDelete(profile string) error {
 /* ---------------- export ---------------- */
 
 func pgExport(profile string, envPath string) error {
-	b, err := os.ReadFile(postgresPath())
+	vars, err := PGExportVars(profile)
 	if err != nil {
-		return fmt.Errorf("could not read %s: %w", postgresPath(), err)
-	}
-	var cfg pgConfig
-	if err := yaml.Unmarshal(b, &cfg); err != nil {
 		return err
-	}
-	p, ok := cfg.Profiles[profile]
-	if !ok {
-		return fmt.Errorf("profile %q not found in %s", profile, postgresPath())
-	}
-	// Build URL (disable SSL by default for local dev)
-	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		p.User, p.Password, p.Host, p.Port, p.DBName)
-
-	vars := map[string]string{
-		"PG_DATABASE_URL": url,
-		"PGHOST":          p.Host,
-		"PGPORT":          p.Port,
-		"PGUSER":          p.User,
-		"PGPASSWORD":      p.Password,
-		"PGDATABASE":      p.DBName,
 	}
 
 	if envPath != "" { // write/merge to .env

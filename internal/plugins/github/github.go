@@ -139,6 +139,29 @@ func saveCfg(cfg ghConfig) error {
 	return os.WriteFile(cfgPath(), out, 0o600)
 }
 
+// ExportVars returns GitHub env map for a profile.
+func ExportVars(profile string) (map[string]string, error) {
+	cfg, err := loadCfg()
+	if err != nil {
+		return nil, err
+	}
+	p, ok := cfg.Profiles[profile]
+	if !ok {
+		return nil, fmt.Errorf("profile %q not found in %s", profile, cfgPath())
+	}
+
+	vars := map[string]string{
+		"GITHUB_TOKEN": p.Token,
+	}
+	if p.APIBase != "" {
+		vars["GITHUB_API_BASE"] = p.APIBase
+	}
+	if p.User != "" {
+		vars["GITHUB_USER"] = p.User
+	}
+	return vars, nil
+}
+
 /* ------------ command impls ------------ */
 
 func ghSetConfig(profile string, testConn, noPrompt bool, tok, api string) error {
@@ -255,23 +278,9 @@ func ghDelete(profile string) error {
 }
 
 func ghExport(profile string, envPath string) error {
-	cfg, err := loadCfg()
+	vars, err := ExportVars(profile)
 	if err != nil {
 		return err
-	}
-	p, ok := cfg.Profiles[profile]
-	if !ok {
-		return fmt.Errorf("profile %q not found in %s", profile, cfgPath())
-	}
-
-	vars := map[string]string{
-		"GITHUB_TOKEN": p.Token,
-	}
-	if p.APIBase != "" {
-		vars["GITHUB_API_BASE"] = p.APIBase
-	}
-	if p.User != "" {
-		vars["GITHUB_USER"] = p.User
 	}
 
 	if envPath != "" { // write/merge to .env
