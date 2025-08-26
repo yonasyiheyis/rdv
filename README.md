@@ -12,16 +12,17 @@ _Unique, interactive, one‑stop CLI for managing local & CI development sec
 
 | Domain | Commands | What it does |
 |---|---|---|
-| **AWS** | `set-config`, `modify`, `delete`, `export`, `list`, `show` | Interactive **or** `--no-prompt` with flags; writes **`~/.aws/{credentials,config}`**; prints `export AWS_*` or writes with `--env-file`. |
-| **PostgreSQL** | `db postgres set-config / modify / delete / export / list / show` | Interactive **or** `--no-prompt` with flags; stores profiles in **`~/.config/rdv/db/postgres.yaml`**; prints `PG*`/`PG_DATABASE_URL` or writes with `--env-file`. |
-| **MySQL** | `db mysql set-config / modify / delete / export / list / show` | Interactive **or** `--no-prompt` with flags; stores profiles in **`~/.config/rdv/db/mysql.yaml`**; prints `MYSQL_*`/`MYSQL_DATABASE_URL` or writes with `--env-file`. |
-| **GitHub** | `github set-config / modify / delete / export / list / show` | Manage per-profile tokens; interactive **or** `--no-prompt` with flags; stores in **`~/.config/rdv/github.yaml`**; prints `GITHUB_TOKEN` (and optional vars) or writes with `--env-file`. |
+| **AWS** | `set-config`, `modify`, `delete`, `export`, `list`, `show` | Interactive **or** `--no-prompt` with flags; writes **`~/.aws/{credentials,config}`**; prints `export AWS_*` or writes with `--env-file`; **`--json`** supported on `export`, `list`, `show`. |
+| **PostgreSQL** | `db postgres set-config / modify / delete / export / list / show` | Interactive **or** `--no-prompt`; stores profiles in **`~/.config/rdv/db/postgres.yaml`**; prints `PG*`/`PG_DATABASE_URL` or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
+| **MySQL** | `db mysql set-config / modify / delete / export / list / show` | Interactive **or** `--no-prompt`; stores profiles in **`~/.config/rdv/db/mysql.yaml`**; prints `MYSQL_*`/`MYSQL_DATABASE_URL` or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
+| **GitHub** | `github set-config / modify / delete / export / list / show` | Manage per-profile tokens; interactive **or** `--no-prompt`; stores in **`~/.config/rdv/github.yaml`**; prints `GITHUB_TOKEN` (and optional vars) or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
+| **Env merge** | `env export --set <domain>[:sub]:<profile> ...` | **Merge variables from multiple profiles** into one output: print exports, **write to `.env` with `--env-file`**, or emit **JSON** for agents/CI. |
 | **Plugin Architecture** | – | Each domain (AWS, DBs, GitHub) is a Go plugin registered at build time—easy to extend. |
 | **Profiles** | `--profile dev` | Keep isolated configs (`default`, `dev`, `staging`, …). |
 | **Shell-friendly** | `eval "$(rdv … export)"`, `--env-file` | Outputs `export` lines or merges to `.env` files for CI/agents. |
 | **Completions** | `rdv completion zsh` | Generates Bash, Zsh, Fish, PowerShell completion scripts. |
 | **Structured Logging** | `--debug` | Enable JSON/debug logs powered by zap. |
-| **JSON output** | `--json` on `list` / `show` | Stable, sorted output for agents/CI across AWS, Postgres, MySQL, GitHub. |
+| **JSON output** | `--json` | Available on **`list`**, **`show`**, **`export`** (per-plugin), plus **`env export`** receipts; lists are sorted for deterministic results. |
 
 
 ---
@@ -82,10 +83,24 @@ rdv github show --profile bot
 # 9. Machine-readable (JSON) examples
 rdv aws list --json
 rdv db postgres show --profile dev --json
+
+# 10. Merge multiple profiles into one .env (global export)
+rdv env export \
+  --set aws:dev \
+  --set db.postgres:dev \
+  --set db.mysql:ci \
+  --set github:bot \
+  --env-file .env.merged
+
+# 11. Machine-readable merged output (JSON)
+rdv env export \
+  --set aws:dev --set db.postgres:dev --set github:bot \
+  --json
 ```
 Tips: 
 - add profile‑specific exports to files like .env.dev, .env.test, etc.
 - JSON output is available on `list` and `show` for all plugins via `--json`, and lists are sorted for deterministic results.
+- `rdv env export` can merge **multiple profiles across plugins** into one `.env` or JSON payload for agents/CI.
 
 
 #### 🧪 Connection Testing (`--test-conn`)
@@ -125,6 +140,24 @@ rdv github export --profile bot --env-file .env.ci
 ```
 (Interactive prompts remain available when --no-prompt is omitted.)
 
+#### 🌐 Global env merge (`rdv env export`)
+
+Combine variables from multiple profiles (AWS, DBs, GitHub) into a single output:
+
+```bash
+# Print merged exports (stdout)
+rdv env export --set aws:dev --set db.postgres:dev --set github:bot
+
+# Write to a .env file (merge/overwrite keys if present)
+rdv env export --set aws:dev --set db.mysql:ci --env-file .env.ci
+
+# JSON for agents/CI
+rdv env export --set aws:dev --set db.postgres:dev --json
+```
+Notes:
+- The order of --set flags determines precedence when the same key appears in multiple sources (later wins).
+- --env-file writes a simple KEY=VALUE file (merging if the file already exists).
+
 ### Docker (Linux/macOS/Windows)
 
 ```bash
@@ -137,8 +170,8 @@ docker run --rm -v $HOME/.aws:/root/.aws ghcr.io/yonasyiheyis/rdv rdv aws export
 
 ```powershell
 # once you create a scoop bucket later; for now direct download
-curl -LO https://github.com/yonasyiheyis/rdv/releases/download/v0.6.0/rdv_0.6.0_windows_amd64.zip
-Expand-Archive rdv_0.6.0_windows_amd64.zip -DestinationPath C:\rdv
+curl -LO https://github.com/yonasyiheyis/rdv/releases/download/v0.7.0/rdv_0.7.0_windows_amd64.zip
+Expand-Archive rdv_0.7.0_windows_amd64.zip -DestinationPath C:\rdv
 setx PATH "%PATH%;C:\rdv"
 ```
 
