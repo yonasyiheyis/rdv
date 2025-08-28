@@ -11,6 +11,7 @@ jobs:
       contents: write
       packages: write               # needed to push to GHCR
       pull-requests: write
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +41,32 @@ jobs:
       # make the token available for the Homebrew pipe
       - name: Set up Homebrew tap token
         run: echo "HOMEBREW_GITHUB_API_TOKEN=${{ secrets.RDV_TOKEN_GORELEASER }}" >> $GITHUB_ENV
+
+      # Install cosign (keyless signing uses GitHub OIDC)
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      # Install Syft (SBOM generator used by GoReleaser)
+      - name: Install Syft
+        run: |
+          set -euo pipefail
+          SYFT_VERSION="v1.18.0"
+          OS="$(uname -s)"
+          ARCH="$(uname -m)"
+          case "$OS" in
+            Linux)  OS="linux" ;;
+            Darwin) OS="darwin" ;;
+            *) echo "Unsupported OS: $OS"; exit 1 ;;
+          esac
+          case "$ARCH" in
+            x86_64) ARCH="amd64" ;;
+            aarch64) ARCH="arm64" ;;
+            *) echo "Unsupported ARCH: $ARCH"; exit 1 ;;
+          esac
+          curl -sSfL "https://github.com/anchore/syft/releases/download/${SYFT_VERSION}/syft_${SYFT_VERSION#v}_${OS}_${ARCH}.tar.gz" -o syft.tgz
+          tar -xzf syft.tgz syft
+          sudo mv syft /usr/local/bin/
+          syft version
 
       # --- GoReleaser v2 ---------------------------------------------
       - uses: goreleaser/goreleaser-action@v5
