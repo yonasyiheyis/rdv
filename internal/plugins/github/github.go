@@ -11,6 +11,7 @@ import (
 
 	"github.com/yonasyiheyis/rdv/internal/cli"
 	"github.com/yonasyiheyis/rdv/internal/envfile"
+	"github.com/yonasyiheyis/rdv/internal/exitcodes"
 	fflags "github.com/yonasyiheyis/rdv/internal/flags"
 	"github.com/yonasyiheyis/rdv/internal/logger"
 	"github.com/yonasyiheyis/rdv/internal/plugin"
@@ -147,7 +148,7 @@ func ExportVars(profile string) (map[string]string, error) {
 	}
 	p, ok := cfg.Profiles[profile]
 	if !ok {
-		return nil, fmt.Errorf("profile %q not found in %s", profile, cfgPath())
+		return nil, exitcodes.New(exitcodes.ProfileNotFound, fmt.Sprintf("profile %q not found in %s", profile, cfgPath()))
 	}
 
 	vars := map[string]string{
@@ -169,7 +170,7 @@ func ghSetConfig(profile string, testConn, noPrompt bool, tok, api string) error
 
 	if noPrompt || !cli.IsTerminal() {
 		if tok == "" {
-			return fmt.Errorf("missing required flag: --token")
+			return exitcodes.New(exitcodes.InvalidArgs, "missing required flag: --token")
 		}
 		p.Token = tok
 		p.APIBase = api
@@ -199,7 +200,7 @@ func ghSetConfig(profile string, testConn, noPrompt bool, tok, api string) error
 
 	if testConn {
 		if err := testToken(&p); err != nil {
-			return err
+			return exitcodes.Wrap(exitcodes.ConnectionFailed, err)
 		}
 		cfg.Profiles[profile] = p // user may be populated by testToken
 		_ = saveCfg(cfg)
@@ -225,7 +226,7 @@ func ghModify(profile string, testConn, noPrompt bool, tok, api string) error {
 			p.APIBase = api
 		}
 		if p.Token == "" {
-			return fmt.Errorf("missing values; provide --token or run interactively")
+			return exitcodes.New(exitcodes.InvalidArgs, "missing values; provide --token or run interactively")
 		}
 	} else {
 		form := huh.NewForm(
@@ -246,7 +247,7 @@ func ghModify(profile string, testConn, noPrompt bool, tok, api string) error {
 
 	if testConn {
 		if err := testToken(&p); err != nil {
-			return err
+			return exitcodes.Wrap(exitcodes.ConnectionFailed, err)
 		}
 		cfg.Profiles[profile] = p
 		_ = saveCfg(cfg)
@@ -285,21 +286,27 @@ func ghExport(profile string, envPath string) error {
 
 	if envPath != "" { // write/merge to .env
 		if err := envfile.WriteEnv(envPath, vars); err != nil {
-			return err
+			return exitcodes.Wrap(exitcodes.EnvWriteFailed, err)
 		}
 		if iprint.JSON {
-			return iprint.Out(map[string]any{
+			if err := iprint.Out(map[string]any{
 				"written": len(vars),
 				"path":    envPath,
 				"vars":    vars,
-			})
+			}); err != nil {
+				return exitcodes.Wrap(exitcodes.JSONError, err)
+			}
+			return nil
 		}
 		fmt.Printf("✅ wrote %d vars to %s\n", len(vars), envPath)
 		return nil
 	}
 
 	if iprint.JSON {
-		return iprint.Out(vars)
+		if err := iprint.Out(vars); err != nil {
+			return exitcodes.Wrap(exitcodes.JSONError, err)
+		}
+		return nil
 	}
 
 	for k, v := range vars { // fallback: print exports

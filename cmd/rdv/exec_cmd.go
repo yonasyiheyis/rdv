@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	execenv "github.com/yonasyiheyis/rdv/internal/exec"
+	"github.com/yonasyiheyis/rdv/internal/exitcodes"
 )
 
 func newExecCmd() *cobra.Command {
@@ -31,7 +32,7 @@ Examples:
 				args = args[split:]
 			}
 			if len(args) == 0 {
-				return fmt.Errorf("provide a command to run after --, e.g., rdv exec --aws dev -- env")
+				return exitcodes.New(exitcodes.InvalidArgs, "provide a command to run after --, e.g., rdv exec --aws dev -- env")
 			}
 
 			// Require at least one source; otherwise it's a no-op.
@@ -64,7 +65,15 @@ Examples:
 			child.Stderr = os.Stderr
 
 			// Run and propagate error (exit code behavior will be refined in the exit-codes task)
-			return child.Run()
+			if err := child.Run(); err != nil {
+				// If the child ran and failed, propagate its exit code exactly.
+				if ee, ok := err.(*exec.ExitError); ok {
+					return exitcodes.WithCode(ee.ExitCode())
+				}
+				// Otherwise: spawn failure (binary not found, permission, etc.)
+				return exitcodes.Wrap(exitcodes.ChildSpawnFailed, err)
+			}
+			return nil
 		},
 	}
 
