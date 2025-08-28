@@ -84,3 +84,43 @@ brews:
         rdv completion zsh > $(brew --prefix)/share/zsh/site-functions/_rdv
     test: |
       rdv --version
+
+# --- SBOMs: generate SPDX JSON for release archives and docker images ---
+sboms:
+  - id: default
+    documents:
+      - spdx-json
+    artifacts:
+      - archive
+      - docker
+
+# --- Sign non-docker artifacts (checksums and archives) with cosign keyless ---
+signs:
+  - id: sign-checksum
+    cmd: cosign
+    artifacts: checksum
+    args:
+      - sign-blob
+      - --yes
+      - --output-signature=${artifact}.sig
+      - --output-certificate=${artifact}.pem
+      - ${artifact}
+
+  - id: sign-archives
+    cmd: cosign
+    artifacts: archive
+    args:
+      - sign-blob
+      - --yes
+      - --output-signature=${artifact}.sig
+      - --output-certificate=${artifact}.pem
+      - ${artifact}
+
+# --- Sign docker images pushed by GoReleaser (GHCR) with cosign keyless ---
+docker_signs:
+  - id: sign-images
+    cmd: cosign
+    args:
+      - sign
+      - --yes
+      - ${artifact}
