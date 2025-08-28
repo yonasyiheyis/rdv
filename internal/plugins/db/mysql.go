@@ -11,6 +11,7 @@ import (
 
 	"github.com/yonasyiheyis/rdv/internal/cli"
 	"github.com/yonasyiheyis/rdv/internal/envfile"
+	"github.com/yonasyiheyis/rdv/internal/exitcodes"
 	fflags "github.com/yonasyiheyis/rdv/internal/flags"
 	"github.com/yonasyiheyis/rdv/internal/logger"
 	iprint "github.com/yonasyiheyis/rdv/internal/print"
@@ -147,7 +148,7 @@ func MySQLExportVars(profile string) (map[string]string, error) {
 	}
 	p, ok := cfg.Profiles[profile]
 	if !ok {
-		return nil, fmt.Errorf("profile %q not found in %s", profile, mysqlPath())
+		return nil, exitcodes.New(exitcodes.ProfileNotFound, fmt.Sprintf("profile %q not found in %s", profile, mysqlPath()))
 	}
 
 	dsn := buildMySQLDSN(p)
@@ -171,7 +172,7 @@ func mysqlSetConfig(profile string, testConn, noPrompt bool, host, port, db, use
 
 	if noPrompt || !cli.IsTerminal() {
 		if host == "" || port == "" || db == "" || user == "" || pass == "" {
-			return fmt.Errorf("missing required flags: --host --port --dbname --user --password")
+			return exitcodes.New(exitcodes.InvalidArgs, "missing required flags: --host --port --dbname --user --password")
 		}
 		in = mysqlProfile{Host: host, Port: port, DBName: db, User: user, Password: pass, Params: params}
 	} else {
@@ -206,7 +207,9 @@ func mysqlSetConfig(profile string, testConn, noPrompt bool, host, port, db, use
 	fmt.Printf("✅ MySQL profile %q saved to %s\n", profile, mysqlPath())
 
 	if testConn {
-		return testMySQLConn(in)
+		if err := testMySQLConn(in); err != nil {
+			return exitcodes.Wrap(exitcodes.ConnectionFailed, err)
+		}
 	}
 	return nil
 }
@@ -238,7 +241,7 @@ func mysqlModify(profile string, testConn, noPrompt bool, host, port, db, user, 
 			in.Params = params
 		}
 		if in.Host == "" || in.Port == "" || in.DBName == "" || in.User == "" || in.Password == "" {
-			return fmt.Errorf("missing values; provide all with flags or run interactively")
+			return exitcodes.New(exitcodes.InvalidArgs, "missing values; provide all with flags or run interactively")
 		}
 	} else {
 		form := huh.NewForm(
@@ -265,7 +268,9 @@ func mysqlModify(profile string, testConn, noPrompt bool, host, port, db, user, 
 	fmt.Printf("✅ Updated MySQL profile %q\n", profile)
 
 	if testConn {
-		return testMySQLConn(in)
+		if err := testMySQLConn(in); err != nil {
+			return exitcodes.Wrap(exitcodes.ConnectionFailed, err)
+		}
 	}
 	return nil
 }
@@ -298,21 +303,27 @@ func mysqlExport(profile string, envPath string) error {
 
 	if envPath != "" { // write/merge to .env
 		if err := envfile.WriteEnv(envPath, vars); err != nil {
-			return err
+			return exitcodes.Wrap(exitcodes.EnvWriteFailed, err)
 		}
 		if iprint.JSON {
-			return iprint.Out(map[string]any{
+			if err := iprint.Out(map[string]any{
 				"written": len(vars),
 				"path":    envPath,
 				"vars":    vars,
-			})
+			}); err != nil {
+				return exitcodes.Wrap(exitcodes.JSONError, err)
+			}
+			return nil
 		}
 		fmt.Printf("✅ wrote %d vars to %s\n", len(vars), envPath)
 		return nil
 	}
 
 	if iprint.JSON {
-		return iprint.Out(vars)
+		if err := iprint.Out(vars); err != nil {
+			return exitcodes.Wrap(exitcodes.JSONError, err)
+		}
+		return nil
 	}
 
 	for k, v := range vars { // fallback: print exports

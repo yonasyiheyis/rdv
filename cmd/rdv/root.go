@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	// Internal packages
+	"github.com/yonasyiheyis/rdv/internal/exitcodes"
 	"github.com/yonasyiheyis/rdv/internal/logger"
 	"github.com/yonasyiheyis/rdv/internal/plugin"
 	iprint "github.com/yonasyiheyis/rdv/internal/print"
@@ -136,7 +137,10 @@ func initConfig() {
 // Execute is called by main.go.
 func Execute() {
 	if err := newRootCmd().Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		// print message only if there is one
+		if msg := exitcodes.Message(err); msg != "" {
+			fmt.Fprintln(os.Stderr, msg)
+		}
+		os.Exit(exitcodes.FromError(err))
 	}
 }

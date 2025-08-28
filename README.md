@@ -18,6 +18,7 @@ _Unique, interactive, one‑stop CLI for managing local & CI development sec
 | **GitHub** | `github set-config / modify / delete / export / list / show` | Manage per-profile tokens; interactive **or** `--no-prompt`; stores in **`~/.config/rdv/github.yaml`**; prints `GITHUB_TOKEN` (and optional vars) or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
 | **Env merge** | `env export --set <domain>[:sub]:<profile> ...` | **Merge variables from multiple profiles** into one output: print exports, **write to `.env` with `--env-file`**, or emit **JSON** for agents/CI. |
 | **Exec** | `exec -- [command args...]` | Run a command with env from one or more profiles (`--aws`, `--pg`, `--mysql`, `--github`). Inherits your current env by default (use `--no-inherit` to isolate). Requires at least one profile and passes through the child’s exit code. |
+| **Exit codes** | – | Stable exit codes for agents/CI: `2` invalid/missing args, `3` profile not found, `5` connection test failed; `rdv exec` returns the child process exit code. |
 | **Plugin Architecture** | – | Each domain (AWS, DBs, GitHub) is a Go plugin registered at build time—easy to extend. |
 | **Profiles** | `--profile dev` | Keep isolated configs (`default`, `dev`, `staging`, …). |
 | **Shell-friendly** | `eval "$(rdv … export)"`, `--env-file` | Outputs `export` lines or merges to `.env` files for CI/agents. |
@@ -42,7 +43,7 @@ brew install rdv            # upgrades with `brew upgrade rdv`
 Download the latest binary from the [GitHub Releases page](https://github.com/yonasyiheyis/rdv/releases), then move it into your `$PATH` and make it executable:
 
 ```bash
-chmod +x rdv_0.8.0_darwin_arm64/rdv
+chmod +x rdv_0.8.1_darwin_arm64/rdv
 sudo mv rdv /usr/local/bin/
 ```
 
@@ -184,6 +185,30 @@ Notes:
 - By default, your current environment is included; add --no-inherit to start clean.
 - Stdout/stderr/stdin are streamed through, and the child process exit code is returned.
 
+#### 📟 Exit codes & error contract
+
+All commands return stable, script-friendly exit codes:
+
+- `0` – success  
+- `2` – invalid usage or missing required non-interactive flags (e.g., `--no-prompt` without all flags), or `exec` without a command  
+- `3` – profile not found  
+- `5` – `--test-conn` validation failed (e.g., DB unreachable, bad token)
+
+Notes:
+- `rdv exec` **returns the child process exit code** when the command runs; use this to fail builds based on your tests.
+- Non-interactive validation errors (missing flags when `--no-prompt` is set) return **2**.
+- Profile lookup failures on `export / show / modify / delete` return **3**.
+
+Examples:
+```bash
+rdv github export --profile __nope__ ; echo "exit=$?"     # -> 3
+rdv db mysql set-config --no-prompt --profile tmp \        # missing --password
+  --host h --port 3306 --dbname d --user u ; echo "exit=$?" # -> 2
+rdv db mysql set-config --no-prompt --profile bad \
+  --host 127.0.0.1 --port 59998 --dbname x --user u --password p \
+  --test-conn ; echo "exit=$?"                              # -> 5
+```
+
 ### Docker (Linux/macOS/Windows)
 
 ```bash
@@ -196,8 +221,8 @@ docker run --rm -v $HOME/.aws:/root/.aws ghcr.io/yonasyiheyis/rdv rdv aws export
 
 ```powershell
 # once you create a scoop bucket later; for now direct download
-curl -LO https://github.com/yonasyiheyis/rdv/releases/download/v0.7.0/rdv_0.8.0_windows_amd64.zip
-Expand-Archive rdv_0.8.0_windows_amd64.zip -DestinationPath C:\rdv
+curl -LO https://github.com/yonasyiheyis/rdv/releases/download/v0.8.1/rdv_0.8.1_windows_amd64.zip
+Expand-Archive rdv_0.8.1_windows_amd64.zip -DestinationPath C:\rdv
 setx PATH "%PATH%;C:\rdv"
 ```
 

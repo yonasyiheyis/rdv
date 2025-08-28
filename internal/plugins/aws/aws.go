@@ -13,6 +13,7 @@ import (
 
 	"github.com/yonasyiheyis/rdv/internal/cli"
 	"github.com/yonasyiheyis/rdv/internal/envfile"
+	"github.com/yonasyiheyis/rdv/internal/exitcodes"
 	fflags "github.com/yonasyiheyis/rdv/internal/flags"
 	"github.com/yonasyiheyis/rdv/internal/logger"
 	"github.com/yonasyiheyis/rdv/internal/plugin"
@@ -187,13 +188,13 @@ func saveAWSProfile(profile string, in credsInput) error {
 func ExportVars(profile string) (map[string]string, error) {
 	credINI, err := ini.Load(credentialsPath())
 	if err != nil {
-		return nil, fmt.Errorf("failed to read credentials file: %w", err)
+		return nil, exitcodes.Wrap(exitcodes.ConfigReadWrite, fmt.Errorf("failed to read credentials file: %w", err))
 	}
 	sec := credINI.Section(profile)
 	id := strings.TrimSpace(sec.Key("aws_access_key_id").String())
 	secret := strings.TrimSpace(sec.Key("aws_secret_access_key").String())
 	if id == "" || secret == "" {
-		return nil, fmt.Errorf("profile %q not found in %s", profile, credentialsPath())
+		return nil, exitcodes.New(exitcodes.ProfileNotFound, fmt.Sprintf("profile %q not found in %s", profile, credentialsPath()))
 	}
 
 	cfgINI, _ := ini.Load(configPath())
@@ -216,7 +217,7 @@ func runSet(profile string, testConn, noPrompt bool, access, secret, region stri
 
 	if noPrompt || !cli.IsTerminal() {
 		if access == "" || secret == "" || region == "" {
-			return fmt.Errorf("missing required flags: --access-key, --secret-key, --region")
+			return exitcodes.New(exitcodes.InvalidArgs, "missing required flags: --access-key, --secret-key, --region")
 		}
 		in.AccessKey, in.SecretKey, in.Region = access, secret, region
 	} else {
@@ -240,7 +241,9 @@ func runSet(profile string, testConn, noPrompt bool, access, secret, region stri
 	fmt.Printf("✅ Credentials saved to %s (profile %q)\n", credentialsPath(), profile)
 
 	if testConn {
-		return testAWSCreds(in)
+		if err := testAWSCreds(in); err != nil {
+			return exitcodes.Wrap(exitcodes.ConnectionFailed, err)
+		}
 	}
 	return nil
 }
@@ -263,7 +266,7 @@ func runModifyAWS(profile string, testConn, noPrompt bool, access, secret, regio
 			in.Region = region
 		}
 		if in.AccessKey == "" || in.SecretKey == "" || in.Region == "" {
-			return fmt.Errorf("missing values; provide all with flags or run interactively")
+			return exitcodes.New(exitcodes.InvalidArgs, "missing values; provide all with flags or run interactively")
 		}
 	} else {
 		form := huh.NewForm(
@@ -286,7 +289,9 @@ func runModifyAWS(profile string, testConn, noPrompt bool, access, secret, regio
 	fmt.Printf("✅ Updated profile %q\n", profile)
 
 	if testConn {
-		return testAWSCreds(in)
+		if err := testAWSCreds(in); err != nil {
+			return exitcodes.Wrap(exitcodes.ConnectionFailed, err)
+		}
 	}
 	return nil
 }
@@ -326,21 +331,27 @@ func runExport(profile string, envPath string) error {
 
 	if envPath != "" { // write/merge to .env
 		if err := envfile.WriteEnv(envPath, vars); err != nil {
-			return err
+			return exitcodes.Wrap(exitcodes.EnvWriteFailed, err)
 		}
 		if iprint.JSON {
-			return iprint.Out(map[string]any{
+			if err := iprint.Out(map[string]any{
 				"written": len(vars),
 				"path":    envPath,
 				"vars":    vars,
-			})
+			}); err != nil {
+				return exitcodes.Wrap(exitcodes.JSONError, err)
+			}
+			return nil
 		}
 		fmt.Printf("✅ wrote %d vars to %s\n", len(vars), envPath)
 		return nil
 	}
 
 	if iprint.JSON {
-		return iprint.Out(vars)
+		if err := iprint.Out(vars); err != nil {
+			return exitcodes.Wrap(exitcodes.JSONError, err)
+		}
+		return nil
 	}
 
 	for k, v := range vars { // fallback: print exports
