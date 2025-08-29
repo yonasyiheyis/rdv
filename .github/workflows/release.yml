@@ -63,9 +63,10 @@ jobs:
             aarch64) ARCH="arm64" ;;
             *) echo "Unsupported ARCH: $ARCH"; exit 1 ;;
           esac
-          curl -sSfL "https://github.com/anchore/syft/releases/download/${SYFT_VERSION}/syft_${SYFT_VERSION#v}_${OS}_${ARCH}.tar.gz" -o syft.tgz
-          tar -xzf syft.tgz syft
-          sudo mv syft /usr/local/bin/
+          curl -sSfL "https://github.com/anchore/syft/releases/download/${SYFT_VERSION}/syft_${SYFT_VERSION#v}_${OS}_${ARCH}.tar.gz" -o "$RUNNER_TEMP/syft.tgz"
+          tar -xzf "$RUNNER_TEMP/syft.tgz" -C "$RUNNER_TEMP" syft
+          sudo mv "$RUNNER_TEMP/syft" /usr/local/bin/
+          rm -f "$RUNNER_TEMP/syft.tgz"
           syft version
 
       # --- GoReleaser v2 ---------------------------------------------
