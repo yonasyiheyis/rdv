@@ -85,14 +85,12 @@ brews:
     test: |
       rdv --version
 
-# --- SBOMs: generate SPDX JSON for release archives and docker images ---
+# --- SBOMs: generate SPDX JSON for release archives ---
 sboms:
-  - id: default
+  - id: sbom-archives
+    artifacts: archive
     documents:
       - spdx-json
-    artifacts:
-      - archive
-      - docker
 
 # --- Sign non-docker artifacts (checksums and archives) with cosign keyless ---
 signs:
@@ -102,8 +100,8 @@ signs:
     args:
       - sign-blob
       - --yes
-      - --output-signature=${artifact}.sig
-      - --output-certificate=${artifact}.pem
+      - --output-signature=${signature}
+      - --output-certificate=${certificate}
       - ${artifact}
 
   - id: sign-archives
@@ -112,8 +110,8 @@ signs:
     args:
       - sign-blob
       - --yes
-      - --output-signature=${artifact}.sig
-      - --output-certificate=${artifact}.pem
+      - --output-signature=${signature}
+      - --output-certificate=${certificate}
       - ${artifact}
 
 # --- Sign docker images pushed by GoReleaser (GHCR) with cosign keyless ---
