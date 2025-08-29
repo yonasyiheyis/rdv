@@ -90,7 +90,7 @@ sboms:
   - id: sbom-archives
     artifacts: archive
     documents:
-      - spdx-json
+      - "{{ .ArtifactName }}.spdx.json"
 
 # --- Sign non-docker artifacts (checksums and archives) with cosign keyless ---
 signs:
