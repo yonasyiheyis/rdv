@@ -25,6 +25,10 @@ _Unique, interactive, one‑stop CLI for managing local & CI development sec
 | **Completions** | `rdv completion zsh` | Generates Bash, Zsh, Fish, PowerShell completion scripts. |
 | **Structured Logging** | `--debug` | Enable JSON/debug logs powered by zap. |
 | **JSON output** | `--json` | Available on **`list`**, **`show`**, **`export`** (per-plugin), plus **`env export`** receipts; lists are sorted for deterministic results. |
+> **See Docs for:** \
+> **Agents->** **[`docs/AGENTS.md`](docs/AGENTS.md)** \
+> **GitHub Actions->** **[`docs/CI_GITHUB_ACTIONS.md`](docs/CI_GITHUB_ACTIONS.md)** \
+> **GitLab->** **[`docs/CI_GITLAB.md`](docs/CI_GITLAB.md)**
 
 
 ---
@@ -104,6 +108,13 @@ rdv exec --aws dev -- env | grep AWS_
 rdv exec --pg dev -- psql -c '\conninfo'
 rdv exec --aws dev --pg dev -- make test
 rdv exec --no-inherit --mysql ci -- /bin/sh -lc 'echo $MYSQL_DATABASE_URL'
+
+# 13. Agents & CI — JSON → env (Write merged env into the current shell (or CI step))
+eval "$(
+  rdv env export --set aws:dev --set db.postgres:dev \
+  --json | jq -r 'to_entries[] | "export \(.key)=\(.value)"'
+)"
+go test ./...
 ```
 Tips: 
 - add profile‑specific exports to files like .env.dev, .env.test, etc.
