@@ -47,7 +47,7 @@ brew install rdv            # upgrades with `brew upgrade rdv`
 Download the latest binary from the [GitHub Releases page](https://github.com/yonasyiheyis/rdv/releases), then move it into your `$PATH` and make it executable:
 
 ```bash
-chmod +x rdv_0.8.1_darwin_arm64/rdv
+chmod +x rdv_1.0.0_darwin_arm64/rdv
 sudo mv rdv /usr/local/bin/
 ```
 
@@ -232,8 +232,8 @@ docker run --rm -v $HOME/.aws:/root/.aws ghcr.io/yonasyiheyis/rdv rdv aws export
 
 ```powershell
 # once you create a scoop bucket later; for now direct download
-curl -LO https://github.com/yonasyiheyis/rdv/releases/download/v0.8.1/rdv_0.8.1_windows_amd64.zip
-Expand-Archive rdv_0.8.1_windows_amd64.zip -DestinationPath C:\rdv
+curl -LO https://github.com/yonasyiheyis/rdv/releases/download/v1.0.0/rdv_1.0.0_windows_amd64.zip
+Expand-Archive rdv_1.0.0_windows_amd64.zip -DestinationPath C:\rdv
 setx PATH "%PATH%;C:\rdv"
 ```
 
