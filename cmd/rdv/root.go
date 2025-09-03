@@ -20,6 +20,7 @@ import (
 	// --- side‑effect plugin imports ---
 	_ "github.com/yonasyiheyis/rdv/internal/plugins/aws"
 	_ "github.com/yonasyiheyis/rdv/internal/plugins/db"
+	_ "github.com/yonasyiheyis/rdv/internal/plugins/gcp"
 	_ "github.com/yonasyiheyis/rdv/internal/plugins/github"
 )
 
