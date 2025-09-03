@@ -3,6 +3,7 @@ package github
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/charmbracelet/huh"
@@ -136,6 +137,11 @@ func loadCfg() (ghConfig, error) {
 }
 
 func saveCfg(cfg ghConfig) error {
+	// Ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(cfgPath()), 0o700); err != nil {
+		return err
+	}
+
 	out, _ := yaml.Marshal(cfg)
 	return os.WriteFile(cfgPath(), out, 0o600)
 }
