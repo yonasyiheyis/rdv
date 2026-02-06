@@ -13,13 +13,14 @@ _Unique, interactive, one‑stop CLI for managing local & CI development sec
 | Domain | Commands | What it does |
 |---|---|---|
 | **AWS** | `set-config`, `modify`, `delete`, `export`, `list`, `show` | Interactive **or** `--no-prompt` with flags; writes **`~/.aws/{credentials,config}`**; prints `export AWS_*` or writes with `--env-file`; **`--json`** supported on `export`, `list`, `show`. |
+| **GCP** | `gcp set-config / modify / delete / export / list / show / test-conn` | Interactive **or** `--no-prompt`; supports **service-account-json** and **gcloud-adc** auth; stores profiles in **`~/.config/rdv/gcp/<profile>.yaml`**; prints `GOOGLE_*`/`CLOUDSDK_*` or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
 | **PostgreSQL** | `db postgres set-config / modify / delete / export / list / show` | Interactive **or** `--no-prompt`; stores profiles in **`~/.config/rdv/db/postgres.yaml`**; prints `PG*`/`PG_DATABASE_URL` or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
 | **MySQL** | `db mysql set-config / modify / delete / export / list / show` | Interactive **or** `--no-prompt`; stores profiles in **`~/.config/rdv/db/mysql.yaml`**; prints `MYSQL_*`/`MYSQL_DATABASE_URL` or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
 | **GitHub** | `github set-config / modify / delete / export / list / show` | Manage per-profile tokens; interactive **or** `--no-prompt`; stores in **`~/.config/rdv/github.yaml`**; prints `GITHUB_TOKEN` (and optional vars) or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
 | **Env merge** | `env export --set <domain>[:sub]:<profile> ...` | **Merge variables from multiple profiles** into one output: print exports, **write to `.env` with `--env-file`**, or emit **JSON** for agents/CI. |
-| **Exec** | `exec -- [command args...]` | Run a command with env from one or more profiles (`--aws`, `--pg`, `--mysql`, `--github`). Inherits your current env by default (use `--no-inherit` to isolate). Requires at least one profile and passes through the child’s exit code. |
+| **Exec** | `exec -- [command args...]` | Run a command with env from one or more profiles (`--aws`, `--gcp`, `--pg`, `--mysql`, `--github`). Inherits your current env by default (use `--no-inherit` to isolate). Requires at least one profile and passes through the child's exit code. |
 | **Exit codes** | – | Stable exit codes for agents/CI: `2` invalid/missing args, `3` profile not found, `5` connection test failed; `rdv exec` returns the child process exit code. |
-| **Plugin Architecture** | – | Each domain (AWS, DBs, GitHub) is a Go plugin registered at build time—easy to extend. |
+| **Plugin Architecture** | – | Each domain (AWS, GCP, DBs, GitHub) is a Go plugin registered at build time—easy to extend. |
 | **Profiles** | `--profile dev` | Keep isolated configs (`default`, `dev`, `staging`, …). |
 | **Shell-friendly** | `eval "$(rdv … export)"`, `--env-file` | Outputs `export` lines or merges to `.env` files for CI/agents. |
 | **Completions** | `rdv completion zsh` | Generates Bash, Zsh, Fish, PowerShell completion scripts. |
@@ -54,17 +55,21 @@ sudo mv rdv /usr/local/bin/
 ### 🚀 Quick Start
 
 ```bash
-# 1. Configure an AWS profile interactively (and verify it)
+# 1. Configure profiles interactively (and verify them)
 rdv aws set-config --profile dev --test-conn
+rdv gcp set-config --profile dev --test-conn
 rdv db mysql set-config --profile dev
 rdv github set-config --profile personal
 
 # 2. Load the creds into your shell
 eval "$(rdv aws export --profile dev)"
+eval "$(rdv gcp export --profile dev)"
 
-# 3. Modify or delete the AWS profile later
+# 3. Modify or delete profiles later
 rdv aws modify --profile dev --test-conn
 rdv aws delete --profile dev
+rdv gcp modify --profile dev --test-conn
+rdv gcp delete --profile dev
 
 # 4. Configure a local Postgres DB (and verify it)
 rdv db postgres set-config --profile dev --test-conn
@@ -78,21 +83,25 @@ rdv db postgres delete --profile dev
 
 # 7. List profiles
 rdv aws list
+rdv gcp list
 rdv db postgres list
 rdv db mysql list
 rdv github list
 
 # 8. Show a single profile (secrets redacted)
+rdv gcp show --profile dev
 rdv db mysql show --profile ci
 rdv github show --profile bot
 
 # 9. Machine-readable (JSON) examples
 rdv aws list --json
+rdv gcp show --profile dev --json
 rdv db postgres show --profile dev --json
 
 # 10. Merge multiple profiles into one .env (global export)
 rdv env export \
   --set aws:dev \
+  --set gcp:dev \
   --set db.postgres:dev \
   --set db.mysql:ci \
   --set github:bot \
@@ -100,18 +109,19 @@ rdv env export \
 
 # 11. Machine-readable merged output (JSON)
 rdv env export \
-  --set aws:dev --set db.postgres:dev --set github:bot \
+  --set aws:dev --set gcp:dev --set db.postgres:dev --set github:bot \
   --json
 
 # 12. Run commands with injected env (exec)
 rdv exec --aws dev -- env | grep AWS_
+rdv exec --gcp dev -- env | grep GOOGLE_
 rdv exec --pg dev -- psql -c '\conninfo'
-rdv exec --aws dev --pg dev -- make test
+rdv exec --aws dev --gcp dev --pg dev -- make test
 rdv exec --no-inherit --mysql ci -- /bin/sh -lc 'echo $MYSQL_DATABASE_URL'
 
 # 13. Agents & CI — JSON → env (Write merged env into the current shell (or CI step))
 eval "$(
-  rdv env export --set aws:dev --set db.postgres:dev \
+  rdv env export --set aws:dev --set gcp:dev --set db.postgres:dev \
   --json | jq -r 'to_entries[] | "export \(.key)=\(.value)"'
 )"
 go test ./...
@@ -127,18 +137,32 @@ Tips:
 Add `--test-conn` to `set-config` or `modify` to immediately verify credentials:
 
 - **AWS**: calls STS `GetCallerIdentity` to ensure keys/region are valid.
+- **GCP**: validates service account JSON keys or gcloud ADC tokens.
 - **PostgreSQL**: opens a connection and pings the database.
 
 Example:
 
 ```bash
 rdv aws set-config --profile prod --test-conn
+rdv gcp set-config --profile prod --test-conn
 rdv db postgres modify --profile staging --test-conn
 ```
 
 #### 🤖 Non-interactive mode (CI & agents)
 
 Every `set-config` and `modify` supports `--no-prompt` plus flags, so you can configure profiles without TTYs.
+
+**GCP**
+```bash
+rdv gcp set-config --profile ci --no-prompt \
+  --auth service-account-json --project-id my-project \
+  --key-file /path/to/key.json --region us-central1
+
+rdv gcp set-config --profile ci --no-prompt \
+  --auth gcloud-adc --project-id my-project --region us-central1
+
+rdv gcp export --profile ci --env-file .env.ci
+```
 
 **MySQL**
 ```bash
@@ -161,17 +185,17 @@ rdv github export --profile bot --env-file .env.ci
 
 #### 🌐 Global env merge (`rdv env export`)
 
-Combine variables from multiple profiles (AWS, DBs, GitHub) into a single output:
+Combine variables from multiple profiles (AWS, GCP, DBs, GitHub) into a single output:
 
 ```bash
 # Print merged exports (stdout)
-rdv env export --set aws:dev --set db.postgres:dev --set github:bot
+rdv env export --set aws:dev --set gcp:dev --set db.postgres:dev --set github:bot
 
 # Write to a .env file (merge/overwrite keys if present)
-rdv env export --set aws:dev --set db.mysql:ci --env-file .env.ci
+rdv env export --set aws:dev --set gcp:dev --set db.mysql:ci --env-file .env.ci
 
 # JSON for agents/CI
-rdv env export --set aws:dev --set db.postgres:dev --json
+rdv env export --set aws:dev --set gcp:dev --set db.postgres:dev --json
 ```
 Notes:
 - The order of --set flags determines precedence when the same key appears in multiple sources (later wins).
@@ -184,15 +208,16 @@ Inject environment variables from saved profiles into any command:
 ```bash
 # Separate rdv flags from your command with `--`
 rdv exec --aws dev -- env | grep AWS_
+rdv exec --gcp dev -- env | grep GOOGLE_
 
 # Mix multiple profiles
-rdv exec --aws dev --pg dev -- make test
+rdv exec --aws dev --gcp dev --pg dev -- make test
 
 # Isolate from your current shell env
 rdv exec --no-inherit --mysql ci -- /bin/sh -lc 'echo $MYSQL_DATABASE_URL'
 ```
 Notes:
-- You must pass at least one of --aws, --pg, --mysql, or --github.
+- You must pass at least one of --aws, --gcp, --pg, --mysql, or --github.
 - By default, your current environment is included; add --no-inherit to start clean.
 - Stdout/stderr/stdin are streamed through, and the child process exit code is returned.
 
@@ -255,6 +280,7 @@ source /usr/local/etc/bash_completion.d/rdv
 | File                                   | Created by                            | Purpose                                       |
 |----------------------------------------|---------------------------------------|-----------------------------------------------|
 | `~/.aws/credentials` / `~/.aws/config` | `rdv aws set-config`                  | Standard AWS SDK files.                       |
+| `~/.config/rdv/gcp/<profile>.yaml`     | `rdv gcp set-config`                  | YAML storing GCP profiles (per-profile files).|
 | `~/.config/rdv/db/postgres.yaml`       | `rdv db postgres set-config`          | YAML storing multiple Postgres profiles.      |
 | `~/.config/rdv/db/mysql.yaml`          | `rdv db mysql set-config`             | YAML storing multiple MySQL profiles.         |
 | `~/.config/rdv/github.yaml`            | `rdv github set-config`               | YAML storing multiple GitHub token profiles.  |
