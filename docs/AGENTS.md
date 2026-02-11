@@ -6,7 +6,7 @@ This document describes the **machine contract** for AI agents, scripts, and CI.
 
 ## JSON Shapes
 
-All JSON is printed to stdout when `--json` is present.
+All JSON is printed to stdout when `--json` is present (including `export` when not writing to an env file).
 
 ### 1) List profiles
 ```bash
@@ -40,6 +40,18 @@ rdv github export --profile bot --json
   "GITHUB_TOKEN": "ghp_***REDACTED***",
   "GITHUB_API_BASE": "https://api.github.com/",
   "GITHUB_USER": "bot-user"
+}
+```
+
+GCP example:
+```
+rdv gcp export --profile ci --json
+```
+```
+{
+  "CLOUDSDK_CORE_PROJECT": "my-project",
+  "GOOGLE_CLOUD_PROJECT": "my-project",
+  "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/key.json"
 }
 ```
 
