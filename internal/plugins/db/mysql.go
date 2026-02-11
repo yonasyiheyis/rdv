@@ -170,7 +170,7 @@ func MySQLExportVars(profile string) (map[string]string, error) {
 func mysqlSetConfig(profile string, testConn, noPrompt bool, host, port, db, user, pass, params string) error {
 	var in mysqlProfile
 
-	if noPrompt || !cli.IsTerminal() {
+	if noPrompt || !cli.IsInteractive() {
 		if host == "" || port == "" || db == "" || user == "" || pass == "" {
 			return exitcodes.New(exitcodes.InvalidArgs, "missing required flags: --host --port --dbname --user --password")
 		}
@@ -221,7 +221,7 @@ func mysqlModify(profile string, testConn, noPrompt bool, host, port, db, user, 
 	}
 	in := cfg.Profiles[profile] // zero if not found
 
-	if noPrompt || !cli.IsTerminal() {
+	if noPrompt || !cli.IsInteractive() {
 		if host != "" {
 			in.Host = host
 		}

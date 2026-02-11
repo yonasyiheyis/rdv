@@ -256,7 +256,7 @@ func normalizePath(path string) (string, error) {
 func runSetConfig(profile, auth, projectID, region, zone, keyFile string, copyKey, testConn, noPrompt bool) error {
 	var input gcpConfigInput
 
-	if noPrompt || !cli.IsTerminal() {
+	if noPrompt || !cli.IsInteractive() {
 		// Non-interactive mode - validate required fields
 		if auth == "" {
 			return exitcodes.New(exitcodes.InvalidArgs, "missing required flag: --auth")
@@ -392,7 +392,7 @@ func runModify(profile, auth, projectID, region, zone, keyFile string, copyKey, 
 		CopyKey:   copyKey,
 	}
 
-	if noPrompt || !cli.IsTerminal() {
+	if noPrompt || !cli.IsInteractive() {
 		// Non-interactive mode - only update provided fields
 		if auth != "" {
 			if auth != "service-account-json" && auth != "gcloud-adc" {

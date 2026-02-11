@@ -174,7 +174,7 @@ func ExportVars(profile string) (map[string]string, error) {
 func ghSetConfig(profile string, testConn, noPrompt bool, tok, api string) error {
 	var p ghProfile
 
-	if noPrompt || !cli.IsTerminal() {
+	if noPrompt || !cli.IsInteractive() {
 		if tok == "" {
 			return exitcodes.New(exitcodes.InvalidArgs, "missing required flag: --token")
 		}
@@ -224,7 +224,7 @@ func ghModify(profile string, testConn, noPrompt bool, tok, api string) error {
 	}
 	p := cfg.Profiles[profile] // zero value if missing
 
-	if noPrompt || !cli.IsTerminal() {
+	if noPrompt || !cli.IsInteractive() {
 		if tok != "" {
 			p.Token = tok
 		}
