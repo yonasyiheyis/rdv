@@ -221,7 +221,7 @@ func runSet(profile string, testConn, noPrompt bool, access, secret, region stri
 		}
 		in.AccessKey, in.SecretKey, in.Region = access, secret, region
 	} else {
-		form := huh.NewForm(
+		form := ui.NewForm(
 			huh.NewGroup(
 				huh.NewInput().Title("AWS Access Key ID").Value(&in.AccessKey).Validate(huh.ValidateNotEmpty()),
 				huh.NewInput().Title("AWS Secret Access Key").EchoMode(huh.EchoModePassword).Value(&in.SecretKey).Validate(huh.ValidateNotEmpty()),
@@ -269,7 +269,7 @@ func runModifyAWS(profile string, testConn, noPrompt bool, access, secret, regio
 			return exitcodes.New(exitcodes.InvalidArgs, "missing values; provide all with flags or run interactively")
 		}
 	} else {
-		form := huh.NewForm(
+		form := ui.NewForm(
 			huh.NewGroup(
 				huh.NewInput().Title("AWS Access Key ID").Value(&in.AccessKey).Validate(huh.ValidateNotEmpty()),
 				huh.NewInput().Title("AWS Secret Access Key").EchoMode(huh.EchoModePassword).Value(&in.SecretKey).Validate(huh.ValidateNotEmpty()),

@@ -167,7 +167,7 @@ func pgSetConfig(profile string, testConn, noPrompt bool, host, port, db, user, 
 		}
 		in = pgProfile{Host: host, Port: port, DBName: db, User: user, Password: pass}
 	} else {
-		f := huh.NewForm(
+		f := ui.NewForm(
 			huh.NewGroup(
 				huh.NewInput().Title("Host").Value(&in.Host).Placeholder("localhost").Validate(huh.ValidateNotEmpty()),
 				huh.NewInput().Title("Port").Value(&in.Port).Placeholder("5432").Validate(huh.ValidateNotEmpty()),
@@ -234,7 +234,7 @@ func pgModify(profile string, testConn, noPrompt bool, host, port, db, user, pas
 			return exitcodes.New(exitcodes.InvalidArgs, "missing values; provide all with flags or run interactively")
 		}
 	} else {
-		form := huh.NewForm(
+		form := ui.NewForm(
 			huh.NewGroup(
 				huh.NewInput().Title("Host").Value(&in.Host).Validate(huh.ValidateNotEmpty()),
 				huh.NewInput().Title("Port").Value(&in.Port).Validate(huh.ValidateNotEmpty()),
