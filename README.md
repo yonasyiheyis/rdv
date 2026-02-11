@@ -161,6 +161,7 @@ rdv gcp set-config --profile ci --no-prompt \
 rdv gcp set-config --profile ci --no-prompt \
   --auth gcloud-adc --project-id my-project --region us-central1
 
+# By default, export prints to stdout; use --env-file to write to a file.
 rdv gcp export --profile ci --env-file .env.ci
 ```
 
@@ -182,6 +183,15 @@ rdv github set-config --profile bot --no-prompt \
 rdv github export --profile bot --env-file .env.ci
 ```
 (Interactive prompts remain available when --no-prompt is omitted.)
+
+#### 🖥️ Interactive rendering mode
+
+By default, interactive prompts use an accessible mode to avoid duplicated fields in limited terminals.
+To enable the full TUI experience, set:
+
+```bash
+RDV_TUI=1 rdv aws set-config
+```
 
 #### 🌐 Global env merge (`rdv env export`)
 

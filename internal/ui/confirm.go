@@ -6,7 +6,7 @@ import (
 
 func Confirm(title string) (bool, error) {
 	var ok bool
-	f := huh.NewForm(
+	f := NewForm(
 		huh.NewGroup(
 			huh.NewConfirm().
 				Title(title).

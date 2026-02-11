@@ -176,7 +176,7 @@ func mysqlSetConfig(profile string, testConn, noPrompt bool, host, port, db, use
 		}
 		in = mysqlProfile{Host: host, Port: port, DBName: db, User: user, Password: pass, Params: params}
 	} else {
-		form := huh.NewForm(
+		form := ui.NewForm(
 			huh.NewGroup(
 				huh.NewInput().Title("Host").Value(&in.Host).Validate(huh.ValidateNotEmpty()).Placeholder("localhost"),
 				huh.NewInput().Title("Port").Value(&in.Port).Validate(huh.ValidateNotEmpty()).Placeholder("3306"),
@@ -244,7 +244,7 @@ func mysqlModify(profile string, testConn, noPrompt bool, host, port, db, user, 
 			return exitcodes.New(exitcodes.InvalidArgs, "missing values; provide all with flags or run interactively")
 		}
 	} else {
-		form := huh.NewForm(
+		form := ui.NewForm(
 			huh.NewGroup(
 				huh.NewInput().Title("Host").Value(&in.Host).Validate(huh.ValidateNotEmpty()),
 				huh.NewInput().Title("Port").Value(&in.Port).Validate(huh.ValidateNotEmpty()),

@@ -129,17 +129,19 @@ func (g *gcpPlugin) Register(root *cobra.Command) {
 	var expProfile string
 	var expPrint bool
 	var expStyle string
+	var expEnvPath string
 
 	exportCmd := &cobra.Command{
 		Use:   "export",
 		Short: "Export GCP environment variables",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runExport(expProfile, expPrint, expStyle)
+			return runExport(expProfile, expPrint, expStyle, expEnvPath)
 		},
 	}
 	exportCmd.Flags().StringVarP(&expProfile, "profile", "p", "dev", "GCP profile")
 	exportCmd.Flags().BoolVar(&expPrint, "print", false, "Print environment variables to stdout")
 	exportCmd.Flags().StringVar(&expStyle, "style", "dotenv", "Output style: dotenv or export")
+	fflags.AddEnvFileFlag(exportCmd.Flags(), &expEnvPath) // --env-file/-o flag
 
 	// -------- test-conn ----------------
 	var testProfile string
@@ -281,7 +283,7 @@ func runSetConfig(profile, auth, projectID, region, zone, keyFile string, copyKe
 		}
 	} else {
 		// Interactive mode
-		form := huh.NewForm(
+		form := ui.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title("Authentication Method").
@@ -310,7 +312,7 @@ func runSetConfig(profile, auth, projectID, region, zone, keyFile string, copyKe
 
 		// Additional form for service account JSON
 		if input.Auth == "service-account-json" {
-			keyForm := huh.NewForm(
+			keyForm := ui.NewForm(
 				huh.NewGroup(
 					huh.NewInput().
 						Title("Path to Service Account JSON Key File").
@@ -414,7 +416,7 @@ func runModify(profile, auth, projectID, region, zone, keyFile string, copyKey, 
 		}
 	} else {
 		// Interactive mode - show current values
-		form := huh.NewForm(
+		form := ui.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title("Authentication Method").
@@ -443,7 +445,7 @@ func runModify(profile, auth, projectID, region, zone, keyFile string, copyKey, 
 
 		// Additional form for service account JSON
 		if input.Auth == "service-account-json" {
-			keyForm := huh.NewForm(
+			keyForm := ui.NewForm(
 				huh.NewGroup(
 					huh.NewInput().
 						Title("Path to Service Account JSON Key File").
@@ -596,7 +598,7 @@ func runShow(profile string) error {
 	return nil
 }
 
-func runExport(profile string, print bool, style string) error {
+func runExport(profile string, print bool, style string, envPath string) error {
 	config, err := loadGCPConfig(profile)
 	if err != nil {
 		return err
@@ -612,6 +614,25 @@ func runExport(profile string, print bool, style string) error {
 		return err
 	}
 
+	// Write to .env file if requested
+	if envPath != "" {
+		if err := envfile.WriteEnv(envPath, vars); err != nil {
+			return exitcodes.Wrap(exitcodes.EnvWriteFailed, err)
+		}
+		if iprint.JSON {
+			return iprint.Out(map[string]any{
+				"path": envPath,
+				"vars": vars,
+			})
+		}
+		fmt.Printf("✅ wrote %d vars to %s\n", len(vars), envPath)
+		return nil
+	}
+
+	// Default: print to stdout (or when --print is set)
+	if iprint.JSON {
+		return iprint.Out(vars)
+	}
 	if print {
 		// Print to stdout
 		if style == "export" {
@@ -626,20 +647,16 @@ func runExport(profile string, print bool, style string) error {
 		return nil
 	}
 
-	// Write to .env file
-	envPath := getEnvPath(profile)
-	if err := envfile.WriteEnv(envPath, vars); err != nil {
-		return exitcodes.Wrap(exitcodes.EnvWriteFailed, err)
+	// Preserve previous behavior if --print is omitted by still printing
+	if style == "export" {
+		for k, v := range vars {
+			fmt.Printf("export %s=\"%s\"\n", k, v)
+		}
+	} else {
+		for k, v := range vars {
+			fmt.Printf("%s=%s\n", k, v)
+		}
 	}
-
-	if iprint.JSON {
-		return iprint.Out(map[string]any{
-			"path": envPath,
-			"vars": vars,
-		})
-	}
-
-	fmt.Printf("✅ wrote %d vars to %s\n", len(vars), envPath)
 	return nil
 }
 

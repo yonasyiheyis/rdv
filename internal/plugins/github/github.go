@@ -181,7 +181,7 @@ func ghSetConfig(profile string, testConn, noPrompt bool, tok, api string) error
 		p.Token = tok
 		p.APIBase = api
 	} else {
-		form := huh.NewForm(
+		form := ui.NewForm(
 			huh.NewGroup(
 				huh.NewInput().Title("GitHub Token").EchoMode(huh.EchoModePassword).Value(&p.Token).Validate(huh.ValidateNotEmpty()),
 				huh.NewInput().Title("API Base URL (optional)").Value(&p.APIBase).Placeholder("https://api.github.com/"),
@@ -235,7 +235,7 @@ func ghModify(profile string, testConn, noPrompt bool, tok, api string) error {
 			return exitcodes.New(exitcodes.InvalidArgs, "missing values; provide --token or run interactively")
 		}
 	} else {
-		form := huh.NewForm(
+		form := ui.NewForm(
 			huh.NewGroup(
 				huh.NewInput().Title("GitHub Token").EchoMode(huh.EchoModePassword).Value(&p.Token).Validate(huh.ValidateNotEmpty()),
 				huh.NewInput().Title("API Base URL (optional)").Value(&p.APIBase),
