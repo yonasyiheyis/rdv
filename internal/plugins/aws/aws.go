@@ -215,7 +215,7 @@ func ExportVars(profile string) (map[string]string, error) {
 func runSet(profile string, testConn, noPrompt bool, access, secret, region string) error {
 	in := credsInput{}
 
-	if noPrompt || !cli.IsTerminal() {
+	if noPrompt || !cli.IsInteractive() {
 		if access == "" || secret == "" || region == "" {
 			return exitcodes.New(exitcodes.InvalidArgs, "missing required flags: --access-key, --secret-key, --region")
 		}
@@ -255,7 +255,7 @@ func runModifyAWS(profile string, testConn, noPrompt bool, access, secret, regio
 	}
 	in := current
 
-	if noPrompt || !cli.IsTerminal() {
+	if noPrompt || !cli.IsInteractive() {
 		if access != "" {
 			in.AccessKey = access
 		}
