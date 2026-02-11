@@ -2,6 +2,12 @@
 
 APP=rdv
 BIN=bin/$(APP)
+GOPATH ?= $(shell go env GOPATH)
+GO1_26 ?= $(GOPATH)/bin/go1.26.0
+GO ?= $(if $(wildcard $(GO1_26)),$(GO1_26),go)
+GOTOOLCHAIN ?= go1.26.0
+GOBIN ?= $(shell $(GO) env GOPATH)/bin
+GOLANGCI_LINT ?= $(GOBIN)/golangci-lint
 
 # Build with version metadata
 VERSION     ?= $(shell git describe --tags --always --dirty)
@@ -13,17 +19,17 @@ LDFLAGS     = -X github.com/yonasyiheyis/rdv/internal/version.Version=$(VERSION)
 
 build: ## Build for host OS/arch
 	@mkdir -p bin
-	go build -ldflags "$(LDFLAGS)" -o $(BIN) ./cmd/rdv
+	GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) build -ldflags "$(LDFLAGS)" -o $(BIN) ./cmd/rdv
 
 test: ## Run unit tests
-	go test ./...
+	GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) test ./...
 
 test-ci: ## Run unit tests with coverage
-	go test ./... -v -race -coverprofile=coverage.out
-	go tool cover -func=coverage.out
+	GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) test ./... -v -race -coverprofile=coverage.out
+	GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) tool cover -func=coverage.out
 
 lint: ## Static analysis
-	golangci-lint run
+	GOTOOLCHAIN=$(GOTOOLCHAIN) $(GOLANGCI_LINT) run
 
 clean:
 	rm -rf bin
