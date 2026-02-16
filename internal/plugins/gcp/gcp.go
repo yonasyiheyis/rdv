@@ -772,3 +772,17 @@ func generateEnvVars(config gcpConfig) (map[string]string, error) {
 
 	return vars, nil
 }
+
+// ExportVars returns GCP environment variables for the named profile.
+// Used by `rdv env export --set gcp:<profile>` and `rdv exec --gcp <profile>`.
+func ExportVars(profile string) (map[string]string, error) {
+	config, err := loadGCPConfig(profile)
+	if err != nil {
+		return nil, err
+	}
+	if config.Auth == "" {
+		return nil, exitcodes.New(exitcodes.ProfileNotFound,
+			fmt.Sprintf("profile %q not found in %s", profile, getConfigPath(profile)))
+	}
+	return generateEnvVars(config)
+}

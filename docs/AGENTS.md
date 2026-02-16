@@ -46,7 +46,7 @@ rdv github export --profile bot --json
 ### 4) Global merge (multiple profiles)
 ```
 rdv env export \
-  --set aws:dev --set db.postgres:dev --set github:bot --json
+  --set aws:dev --set gcp:dev --set db.postgres:dev --set github:bot --json
 ```
 ```
 {
@@ -88,6 +88,7 @@ Run any command with env from saved profiles:
 ```
 # separate rdv flags from your command with `--`
 rdv exec --aws dev --pg dev -- make test
+rdv exec --gcp dev -- env | grep GOOGLE_
 
 # empty baseline (do not inherit current shell env)
 rdv exec --no-inherit --mysql ci -- /bin/sh -lc 'echo $MYSQL_DATABASE_URL'
@@ -99,7 +100,7 @@ rdv exec --no-inherit --mysql ci -- /bin/sh -lc 'echo $MYSQL_DATABASE_URL'
 ```
 # Fetch merged env JSON, then run a command with those vars set
 eval "$(
-  rdv env export --set aws:dev --set db.postgres:dev \
+  rdv env export --set aws:dev --set gcp:dev --set db.postgres:dev \
   --json | jq -r 'to_entries[] | "export \(.key)=\(.value)"'
 )"
 go test ./...
@@ -107,7 +108,7 @@ go test ./...
 
 **Use `rdv exec` to run tools directly**
 ```
-rdv exec --aws dev --pg dev -- go test ./...
+rdv exec --aws dev --gcp dev --pg dev -- go test ./...
 ```
 
 **Discover available profiles**

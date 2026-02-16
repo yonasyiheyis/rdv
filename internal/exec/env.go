@@ -7,11 +7,13 @@ import (
 
 	aws "github.com/yonasyiheyis/rdv/internal/plugins/aws"
 	db "github.com/yonasyiheyis/rdv/internal/plugins/db"
+	gcp "github.com/yonasyiheyis/rdv/internal/plugins/gcp"
 	gh "github.com/yonasyiheyis/rdv/internal/plugins/github"
 )
 
 type Options struct {
 	AWS       string
+	GCP       string
 	Postgres  string
 	MySQL     string
 	GitHub    string
@@ -35,6 +37,13 @@ func BuildEnv(o Options) (map[string]string, error) {
 	// Merge in each selected profile (later ones win on key collisions).
 	if o.AWS != "" {
 		m, err := aws.ExportVars(o.AWS)
+		if err != nil {
+			return nil, err
+		}
+		maps.Copy(env, m)
+	}
+	if o.GCP != "" {
+		m, err := gcp.ExportVars(o.GCP)
 		if err != nil {
 			return nil, err
 		}

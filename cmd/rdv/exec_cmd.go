@@ -12,7 +12,7 @@ import (
 )
 
 func newExecCmd() *cobra.Command {
-	var awsProf, pgProf, mysqlProf, ghProf string
+	var awsProf, pgProf, mysqlProf, ghProf, gcpProf string
 	var noInherit bool
 
 	cmd := &cobra.Command{
@@ -22,6 +22,7 @@ func newExecCmd() *cobra.Command {
 
 Examples:
   rdv exec --aws dev -- env | grep AWS_
+  rdv exec --gcp dev -- env | grep GOOGLE_
   rdv exec --pg dev -- psql -c '\conninfo'
   rdv exec --aws dev --pg dev -- make test
   rdv exec --no-inherit --mysql ci -- /bin/sh -lc 'echo $MYSQL_DATABASE_URL'`,
@@ -36,12 +37,13 @@ Examples:
 			}
 
 			// Require at least one source; otherwise it's a no-op.
-			if awsProf == "" && pgProf == "" && mysqlProf == "" && ghProf == "" {
-				return fmt.Errorf("nothing to inject: pass one of --aws PROFILE, --pg PROFILE, --mysql PROFILE, or --github PROFILE")
+			if awsProf == "" && pgProf == "" && mysqlProf == "" && ghProf == "" && gcpProf == "" {
+				return fmt.Errorf("nothing to inject: pass one of --aws PROFILE, --gcp PROFILE, --pg PROFILE, --mysql PROFILE, or --github PROFILE")
 			}
 
 			envMap, err := execenv.BuildEnv(execenv.Options{
 				AWS:       awsProf,
+				GCP:       gcpProf,
 				Postgres:  pgProf,
 				MySQL:     mysqlProf,
 				GitHub:    ghProf,
@@ -79,6 +81,7 @@ Examples:
 
 	// Profile selectors
 	cmd.Flags().StringVar(&awsProf, "aws", "", "AWS profile to inject")
+	cmd.Flags().StringVar(&gcpProf, "gcp", "", "GCP profile to inject")
 	cmd.Flags().StringVar(&pgProf, "pg", "", "Postgres profile to inject")
 	cmd.Flags().StringVar(&mysqlProf, "mysql", "", "MySQL profile to inject")
 	cmd.Flags().StringVar(&ghProf, "github", "", "GitHub profile to inject")
