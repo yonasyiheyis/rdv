@@ -16,9 +16,10 @@ _Unique, interactive, one‑stop CLI for managing local & CI development sec
 | **GCP** | `gcp set-config / modify / delete / export / list / show / test-conn` | Interactive **or** `--no-prompt`; supports **service-account-json** and **gcloud-adc** auth; stores profiles in **`~/.config/rdv/gcp/<profile>.yaml`**; prints `GOOGLE_*`/`CLOUDSDK_*` or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
 | **PostgreSQL** | `db postgres set-config / modify / delete / export / list / show` | Interactive **or** `--no-prompt`; stores profiles in **`~/.config/rdv/db/postgres.yaml`**; prints `PG*`/`PG_DATABASE_URL` or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
 | **MySQL** | `db mysql set-config / modify / delete / export / list / show` | Interactive **or** `--no-prompt`; stores profiles in **`~/.config/rdv/db/mysql.yaml`**; prints `MYSQL_*`/`MYSQL_DATABASE_URL` or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
+| **Redis** | `db redis set-config / modify / delete / export / list / show` | Interactive **or** `--no-prompt`; stores profiles in **`~/.config/rdv/db/redis.yaml`**; prints `REDIS_*`/`REDIS_URL` or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
 | **GitHub** | `github set-config / modify / delete / export / list / show` | Manage per-profile tokens; interactive **or** `--no-prompt`; stores in **`~/.config/rdv/github.yaml`**; prints `GITHUB_TOKEN` (and optional vars) or writes with `--env-file`; **`--json`** on `export`, `list`, `show`. |
 | **Env merge** | `env export --set <domain>[:sub]:<profile> ...` | **Merge variables from multiple profiles** into one output: print exports, **write to `.env` with `--env-file`**, or emit **JSON** for agents/CI. |
-| **Exec** | `exec -- [command args...]` | Run a command with env from one or more profiles (`--aws`, `--gcp`, `--pg`, `--mysql`, `--github`). Inherits your current env by default (use `--no-inherit` to isolate). Requires at least one profile and passes through the child's exit code. |
+| **Exec** | `exec -- [command args...]` | Run a command with env from one or more profiles (`--aws`, `--gcp`, `--pg`, `--mysql`, `--redis`, `--github`). Inherits your current env by default (use `--no-inherit` to isolate). Requires at least one profile and passes through the child's exit code. |
 | **Exit codes** | – | Stable exit codes for agents/CI: `2` invalid/missing args, `3` profile not found, `5` connection test failed; `rdv exec` returns the child process exit code. |
 | **Plugin Architecture** | – | Each domain (AWS, GCP, DBs, GitHub) is a Go plugin registered at build time—easy to extend. |
 | **Profiles** | `--profile dev` | Keep isolated configs (`default`, `dev`, `staging`, …). |
@@ -86,6 +87,7 @@ rdv aws list
 rdv gcp list
 rdv db postgres list
 rdv db mysql list
+rdv db redis list
 rdv github list
 
 # 8. Show a single profile (secrets redacted)
@@ -104,6 +106,7 @@ rdv env export \
   --set gcp:dev \
   --set db.postgres:dev \
   --set db.mysql:ci \
+  --set db.redis:local \
   --set github:bot \
   --env-file .env.merged
 
@@ -227,7 +230,7 @@ rdv exec --aws dev --gcp dev --pg dev -- make test
 rdv exec --no-inherit --mysql ci -- /bin/sh -lc 'echo $MYSQL_DATABASE_URL'
 ```
 Notes:
-- You must pass at least one of --aws, --gcp, --pg, --mysql, or --github.
+- You must pass at least one of --aws, --gcp, --pg, --mysql, --redis, or --github.
 - By default, your current environment is included; add --no-inherit to start clean.
 - Stdout/stderr/stdin are streamed through, and the child process exit code is returned.
 
@@ -293,6 +296,7 @@ source /usr/local/etc/bash_completion.d/rdv
 | `~/.config/rdv/gcp/<profile>.yaml`     | `rdv gcp set-config`                  | YAML storing GCP profiles (per-profile files).|
 | `~/.config/rdv/db/postgres.yaml`       | `rdv db postgres set-config`          | YAML storing multiple Postgres profiles.      |
 | `~/.config/rdv/db/mysql.yaml`          | `rdv db mysql set-config`             | YAML storing multiple MySQL profiles.         |
+| `~/.config/rdv/db/redis.yaml`          | `rdv db redis set-config`             | YAML storing multiple Redis profiles.         |
 | `~/.config/rdv/github.yaml`            | `rdv github set-config`               | YAML storing multiple GitHub token profiles.  |
 
 

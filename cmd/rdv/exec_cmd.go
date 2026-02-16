@@ -12,7 +12,7 @@ import (
 )
 
 func newExecCmd() *cobra.Command {
-	var awsProf, pgProf, mysqlProf, ghProf string
+	var awsProf, pgProf, mysqlProf, ghProf, redisProf string
 	var noInherit bool
 
 	cmd := &cobra.Command{
@@ -36,8 +36,8 @@ Examples:
 			}
 
 			// Require at least one source; otherwise it's a no-op.
-			if awsProf == "" && pgProf == "" && mysqlProf == "" && ghProf == "" {
-				return fmt.Errorf("nothing to inject: pass one of --aws PROFILE, --pg PROFILE, --mysql PROFILE, or --github PROFILE")
+			if awsProf == "" && pgProf == "" && mysqlProf == "" && ghProf == "" && redisProf == "" {
+				return fmt.Errorf("nothing to inject: pass one of --aws PROFILE, --pg PROFILE, --mysql PROFILE, --redis PROFILE, or --github PROFILE")
 			}
 
 			envMap, err := execenv.BuildEnv(execenv.Options{
@@ -45,6 +45,7 @@ Examples:
 				Postgres:  pgProf,
 				MySQL:     mysqlProf,
 				GitHub:    ghProf,
+				Redis:     redisProf,
 				NoInherit: noInherit,
 			})
 			if err != nil {
@@ -82,6 +83,7 @@ Examples:
 	cmd.Flags().StringVar(&pgProf, "pg", "", "Postgres profile to inject")
 	cmd.Flags().StringVar(&mysqlProf, "mysql", "", "MySQL profile to inject")
 	cmd.Flags().StringVar(&ghProf, "github", "", "GitHub profile to inject")
+	cmd.Flags().StringVar(&redisProf, "redis", "", "Redis profile to inject")
 
 	// Env behavior
 	cmd.Flags().BoolVar(&noInherit, "no-inherit", false, "do not inherit current environment")

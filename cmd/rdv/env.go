@@ -90,7 +90,7 @@ func newEnvExportCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringSliceVar(&sets, "set", nil, "profile spec: aws:<name> | db.postgres:<name> | db.mysql:<name> | github:<name> (repeatable)")
+	cmd.Flags().StringSliceVar(&sets, "set", nil, "profile spec: aws:<name> | db.postgres:<name> | db.mysql:<name> | db.redis:<name> | github:<name> (repeatable)")
 	cmd.Flags().StringVarP(&envPath, "env-file", "o", "", "write/merge result to this .env file instead of printing")
 	return cmd
 }
@@ -104,9 +104,11 @@ func exportFor(target, profile string) (map[string]string, error) {
 		return dbp.PGExportVars(profile)
 	case "db.mysql", "mysql":
 		return dbp.MySQLExportVars(profile)
+	case "db.redis", "redis":
+		return dbp.RedisExportVars(profile)
 	case "github", "gh":
 		return ghp.ExportVars(profile)
 	default:
-		return nil, fmt.Errorf("unknown target %q (expected aws|db.postgres|db.mysql|github)", target)
+		return nil, fmt.Errorf("unknown target %q (expected aws|db.postgres|db.mysql|db.redis|github)", target)
 	}
 }
