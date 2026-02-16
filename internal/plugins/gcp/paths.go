@@ -7,6 +7,9 @@ import (
 
 // getConfigDir returns the GCP config directory path
 func getConfigDir() string {
+	if v := os.Getenv("RDV_GCP_DIR"); v != "" {
+		return v
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".config", "rdv", "gcp")
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/yonasyiheyis/rdv/internal/envfile"
 	awsp "github.com/yonasyiheyis/rdv/internal/plugins/aws"
 	dbp "github.com/yonasyiheyis/rdv/internal/plugins/db"
+	gcpp "github.com/yonasyiheyis/rdv/internal/plugins/gcp"
 	ghp "github.com/yonasyiheyis/rdv/internal/plugins/github"
 	iprint "github.com/yonasyiheyis/rdv/internal/print"
 )
@@ -90,7 +91,7 @@ func newEnvExportCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringSliceVar(&sets, "set", nil, "profile spec: aws:<name> | db.postgres:<name> | db.mysql:<name> | github:<name> (repeatable)")
+	cmd.Flags().StringSliceVar(&sets, "set", nil, "profile spec: aws:<name> | gcp:<name> | db.postgres:<name> | db.mysql:<name> | github:<name> (repeatable)")
 	cmd.Flags().StringVarP(&envPath, "env-file", "o", "", "write/merge result to this .env file instead of printing")
 	return cmd
 }
@@ -100,6 +101,8 @@ func exportFor(target, profile string) (map[string]string, error) {
 	switch target {
 	case "aws":
 		return awsp.ExportVars(profile)
+	case "gcp":
+		return gcpp.ExportVars(profile)
 	case "db.postgres", "postgres", "pg":
 		return dbp.PGExportVars(profile)
 	case "db.mysql", "mysql":
@@ -107,6 +110,6 @@ func exportFor(target, profile string) (map[string]string, error) {
 	case "github", "gh":
 		return ghp.ExportVars(profile)
 	default:
-		return nil, fmt.Errorf("unknown target %q (expected aws|db.postgres|db.mysql|github)", target)
+		return nil, fmt.Errorf("unknown target %q (expected aws|gcp|db.postgres|db.mysql|github)", target)
 	}
 }
