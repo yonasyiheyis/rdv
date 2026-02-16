@@ -21,3 +21,7 @@ func postgresPath() string {
 func mysqlPath() string {
 	return filepath.Join(configDir(), "mysql.yaml")
 }
+
+func redisPath() string {
+	return filepath.Join(configDir(), "redis.yaml")
+}

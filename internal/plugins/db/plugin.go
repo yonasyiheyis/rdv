@@ -20,6 +20,8 @@ func (d *dbPlugin) Register(root *cobra.Command) {
 	dbCmd.AddCommand(newPostgresCmd())
 	// attach the mysql sub‑command
 	dbCmd.AddCommand(newMySQLCmd())
+	// attach the redis sub‑command
+	dbCmd.AddCommand(newRedisCmd())
 
 	root.AddCommand(dbCmd)
 }

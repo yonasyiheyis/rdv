@@ -15,6 +15,7 @@ type Options struct {
 	Postgres  string
 	MySQL     string
 	GitHub    string
+	Redis     string
 	NoInherit bool
 }
 
@@ -56,6 +57,13 @@ func BuildEnv(o Options) (map[string]string, error) {
 	}
 	if o.GitHub != "" {
 		m, err := gh.ExportVars(o.GitHub)
+		if err != nil {
+			return nil, err
+		}
+		maps.Copy(env, m)
+	}
+	if o.Redis != "" {
+		m, err := db.RedisExportVars(o.Redis)
 		if err != nil {
 			return nil, err
 		}
